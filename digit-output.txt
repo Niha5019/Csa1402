@@ -1,0 +1,11 @@
+DIGIT LEXICAL ANALYZER
+
+Input:
+1234
+
+Output:
+Enter a Character: 1234
+It is a Digit
+It is a Digit
+It is a Digit
+It is a Digit
