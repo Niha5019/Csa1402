@@ -1,0 +1,1160 @@
+// ================= FIREBASE CONFIG =================
+const firebaseConfig = {
+  apiKey: "AIzaSyCp3EnCh3P_lbeqDVop8qGVJ4cKuBt5sEo",
+  authDomain: "life-link-blood-ai.firebaseapp.com",
+  projectId: "life-link-blood-ai",
+  storageBucket: "life-link-blood-ai.firebasestorage.app",
+  messagingSenderId: "51325645608",
+  appId: "1:51325645608:web:357e1c37f25515b50cd61d"
+};
+// ================= INITIALIZE FIREBASE =================
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+let soundEnabled     = true;
+let selectedChatUser = null;
+let checkupScores    = {};
+
+// ================= AUTH GUARD =================
+if(window.location.pathname.includes("dashboard") ||
+   window.location.pathname.includes("home")){
+  auth.onAuthStateChanged(user => {
+    if(!user) window.location.href = "login.html";
+  });
+}
+
+// ================= LOGIN =================
+function login(){
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if(!email || !password){ alert("Please enter email and password"); return; }
+  auth.signInWithEmailAndPassword(email, password)
+    .then(cred => {
+      db.collection("users").doc(cred.user.uid).update({ online: true });
+      window.location.href = "dashboard.html";
+    })
+    .catch(err => alert("Login Failed: " + err.message));
+}
+
+// ================= GOOGLE LOGIN =================
+function googleLogin(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .then(cred => {
+      const user = cred.user;
+      db.collection("users").doc(user.uid).set({
+        name:      user.displayName || "User",
+        email:     user.email,
+        mobile:    "",
+        bloodGroup:"",
+        location:  "",
+        age:       "",
+        bloodUnits: 2,
+        online:    true,
+        healthScore: 0,
+        canDonate: false,
+        image:     user.photoURL || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+        createdAt: new Date()
+      }, { merge: true })
+        .then(() => { window.location.href = "dashboard.html"; });
+    })
+    .catch(err => alert("Google Login Failed: " + err.message));
+}
+
+// ================= FORGOT PASSWORD =================
+function forgotPassword(){
+  const emailEl = document.getElementById("email");
+  if(!emailEl || !emailEl.value.trim()){ alert("Please enter your email first."); return; }
+  auth.sendPasswordResetEmail(emailEl.value.trim())
+    .then(() => alert("✅ Password reset email sent! Check your inbox."))
+    .catch(err => alert(err.message));
+}
+
+// ================= REGISTER =================
+function register(){
+  const name     = document.getElementById("name").value.trim();
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const mobile   = document.getElementById("mobile").value.trim();
+  const blood    = document.getElementById("blood").value;
+  const location = document.getElementById("location").value.trim();
+  const age      = document.getElementById("age") ? document.getElementById("age").value.trim() : "";
+  if(!name || !email || !password || !mobile || !blood || !location){
+    alert("Please fill all fields"); return;
+  }
+  if(blood === "Select Blood Group"){
+    alert("Please select a blood group"); return;
+  }
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(cred => {
+      return db.collection("users").doc(cred.user.uid).set({
+        name, email, mobile,
+        bloodGroup: blood,
+        location, age,
+        bloodUnits:  2,
+        online:      true,
+        healthScore: 0,
+        canDonate:   false,
+        image:       "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+        createdAt:   new Date()
+      });
+    })
+    .then(() => {
+      alert("Registration Successful! Welcome to LifeLink AI");
+      window.location.href = "dashboard.html";
+    })
+    .catch(err => alert("Registration Failed: " + err.message));
+}
+
+// ================= OPEN SECTION =================
+function openSection(sectionId){
+  document.querySelectorAll(".section").forEach(s => s.classList.add("hidden"));
+  const el = document.getElementById(sectionId);
+  if(el) el.classList.remove("hidden");
+  hideAllProfilePages();
+  if(sectionId === "onlineUsersSection")   loadOnlineUsers();
+  if(sectionId === "inventorySection")     loadInventory();
+  if(sectionId === "locationSection")      getLocation();
+  if(sectionId === "notificationSection")  loadNotifications();
+  if(sectionId === "chatSection")          loadGroupChat();
+  if(sectionId === "bloodCheckupSection")  loadBloodCheckup();
+  if(sectionId === "reportsSection")       loadBloodReports();
+}
+
+// ================= HIDE ALL PROFILE SUB-PAGES =================
+function hideAllProfilePages(){
+  ["profileInfoPage","editProfilePage","uploadPhotoPage",
+   "changePasswordPage","donationHistoryPage","deleteAccountPage"]
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.add("hidden");
+  });
+}
+
+// ================= SHOW FEATURE =================
+function showFeature(featureId){
+  hideAllProfilePages();
+  ["donorsData","emergencyData","hospitalData","bloodBankData"].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.add("hidden");
+  });
+  const el = document.getElementById(featureId);
+  if(el) el.classList.remove("hidden");
+  if(featureId === "profileInfoPage" || featureId === "editProfilePage") loadMyProfile();
+  if(featureId === "donationHistoryPage") loadDonationHistory();
+}
+
+// ================= SHOW DASHBOARD DATA =================
+function showDashboardData(id){
+  ["donorsData","emergencyData","hospitalData","bloodBankData"].forEach(fid => {
+    const el = document.getElementById(fid);
+    if(el) el.classList.add("hidden");
+  });
+  const el = document.getElementById(id);
+  if(el) el.classList.remove("hidden");
+  if(id === "donorsData"){
+    const container = document.querySelector("#donorsData .cards");
+    if(container) container.innerHTML = "<p>Loading donors...</p>";
+    db.collection("users").onSnapshot(snapshot => {
+      let html = "";
+      snapshot.forEach(doc => {
+        const u = doc.data();
+        const hScore = u.healthScore || 0;
+        const hColor = hScore>=80?"#4caf50":hScore>=50?"#ff9800":"#d90429";
+        html += `
+          <div class="card">
+            <img src="${u.image||'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}"
+              style="width:60px;height:60px;border-radius:50%;object-fit:cover;display:block;margin:auto">
+            <h3>${u.name||"Donor"}</h3>
+            <p>🩸 <b>${u.bloodGroup||"N/A"}</b></p>
+            <p>📍 ${u.location||"N/A"}</p>
+            <p>📱 ${u.mobile||"N/A"}</p>
+            <p>${u.online?"🟢 Online":"⚪ Offline"}</p>
+            <p style="color:${hColor};font-weight:bold">❤️ Health: ${hScore}%</p>
+            <p style="color:${u.canDonate?"#4caf50":"#d90429"};font-weight:bold">
+              ${u.canDonate?"✅ Can Donate":"❌ Cannot Donate"}
+            </p>
+            <button onclick="startChatWith('${doc.id}','${u.name}')">💬 Chat</button>
+          </div>`;
+      });
+      if(!html) html = "<p>No donors yet.</p>";
+      if(container) container.innerHTML = html;
+    });
+  }
+  if(id === "emergencyData"){
+    const container = document.querySelector("#emergencyData .cards");
+    if(container) container.innerHTML = "<p>Loading alerts...</p>";
+    db.collection("alerts").orderBy("time","desc").onSnapshot(snapshot => {
+      let html = "";
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const t = d.time ? new Date(d.time.toDate()).toLocaleString() : "Just now";
+        html += `
+          <div class="card">
+            <h3>🚨 ${d.blood} Needed</h3>
+            <p>🏥 ${d.hospital}</p>
+            <p style="color:#999;font-size:12px">📅 ${t}</p>
+            <button onclick="openSection('emergencySection')">Respond</button>
+          </div>`;
+      });
+      if(!html) html = "<p>No emergency alerts.</p>";
+      if(container) container.innerHTML = html;
+    });
+  }
+  if(id === "hospitalData") loadNearbyHospitals();
+  if(id === "bloodBankData") loadBloodBanks();
+}
+
+// ================= NEARBY HOSPITALS =================
+function loadNearbyHospitals(){
+  const container = document.querySelector("#hospitalData .cards");
+  if(!container) return;
+  container.innerHTML = "<p>📍 Getting your location...</p>";
+  if(!navigator.geolocation){ container.innerHTML="<p>Geolocation not supported.</p>"; return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    container.innerHTML = `
+      <div style="width:100%;border-radius:12px;overflow:hidden">
+        <div style="background:#d90429;color:white;padding:12px 16px;display:flex;justify-content:space-between">
+          <span>🏥 Hospitals Near You</span>
+          <a href="https://www.google.com/maps/search/hospitals/@${lat},${lng},15z" target="_blank"
+            style="color:white;font-size:13px;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:20px;text-decoration:none">
+            🗺️ Open Maps
+          </a>
+        </div>
+        <iframe width="100%" height="450" frameborder="0" style="border:0;display:block"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=${lng-0.05},${lat-0.05},${lng+0.05},${lat+0.05}&layer=mapnik&marker=${lat},${lng}">
+        </iframe>
+        <div style="padding:12px;background:white">
+          <p style="color:#666;font-size:13px">📍 Your location: <b>${lat.toFixed(4)}, ${lng.toFixed(4)}</b></p>
+        </div>
+      </div>`;
+    fetchNearbyHospitals(lat, lng);
+  }, () => {
+    container.innerHTML = `
+      <iframe width="100%" height="400" frameborder="0" style="border:0;display:block"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=80.22,13.06,80.32,13.10&layer=mapnik">
+      </iframe>
+      <p style="color:#999;padding:10px">⚠️ Location denied. Showing Chennai.
+        <a href="#" onclick="loadNearbyHospitals()" style="color:#d90429">Try again</a>
+      </p>`;
+  });
+}
+
+function fetchNearbyHospitals(lat, lng){
+  const listEl = document.getElementById("hospitalList");
+  if(!listEl) return;
+  listEl.innerHTML = "<p style='color:#999'>🔍 Fetching nearby hospitals...</p>";
+  const query = `[out:json][timeout:25];(node["amenity"="hospital"](around:5000,${lat},${lng});way["amenity"="hospital"](around:5000,${lat},${lng}););out body;`;
+  fetch("https://overpass-api.de/api/interpreter", { method:"POST", body:query })
+    .then(r => r.json())
+    .then(data => {
+      if(!data.elements||data.elements.length===0){ listEl.innerHTML="<p>No hospitals found nearby.</p>"; return; }
+      let html = `<h3 style="color:#d90429;margin:12px 0">🏥 ${data.elements.length} Hospitals Found</h3>`;
+      data.elements.forEach((el,i) => {
+        const name  = el.tags&&el.tags.name ? el.tags.name : "Hospital "+(i+1);
+        const phone = el.tags&&el.tags.phone ? el.tags.phone : "";
+        const eLat  = el.lat||lat;
+        const eLng  = el.lon||lng;
+        html += `
+          <div style="background:white;border-left:4px solid #d90429;padding:12px;margin:8px 0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
+            <b>🏥 ${name}</b>
+            ${phone?`<br><small>📞 ${phone}</small>`:""}
+            <br>
+            <a href="https://www.google.com/maps/dir/${lat},${lng}/${eLat},${eLng}" target="_blank"
+              style="color:#d90429;font-size:13px">🗺️ Get Directions</a>
+          </div>`;
+      });
+      listEl.innerHTML = html;
+    })
+    .catch(() => { listEl.innerHTML="<p style='color:#999'>Could not fetch hospitals. Check internet.</p>"; });
+}
+
+// ================= DASHBOARD COUNTS =================
+function loadDashboardCounts(){
+  db.collection("users").onSnapshot(snapshot => {
+    const el = document.getElementById("donorCount");
+    if(el) el.innerHTML = snapshot.size + "+ Donors";
+  });
+  db.collection("alerts").onSnapshot(snapshot => {
+    const el = document.getElementById("emergencyCount");
+    if(el) el.innerHTML = snapshot.size + " Active";
+  });
+  auth.onAuthStateChanged(user => {
+    if(!user) return;
+    db.collection("users").doc(user.uid).onSnapshot(doc => {
+      if(!doc.exists) return;
+      const d = doc.data();
+      const score = d.healthScore || 0;
+      const color = score>=80?"#4caf50":score>=50?"#ff9800":"#d90429";
+      const statusEl = document.getElementById("myHealthStatus");
+      if(statusEl){
+        statusEl.innerHTML = `<span style="color:${color};font-weight:bold">${score}% Health</span>`;
+      }
+    });
+  });
+}
+
+// ================= LOAD PROFILE =================
+function loadMyProfile(){
+  const user = auth.currentUser;
+  if(!user) return;
+  db.collection("users").doc(user.uid).get()
+    .then(doc => {
+      if(!doc.exists) return;
+      const d = doc.data();
+      const set = (id, val) => { const el=document.getElementById(id); if(el) el.innerHTML=val||"N/A"; };
+      set("profileName",     d.name);
+      set("profileEmail",    d.email);
+      set("profileMobile",   d.mobile);
+      set("profileBlood",    d.bloodGroup);
+      set("profileLocation", d.location);
+      set("profileAge",      d.age);
+      set("profileUnits",    d.bloodUnits);
+      const photo = document.getElementById("profilePhoto");
+      if(photo) photo.src = d.image||"https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+      const fill = (id,val) => { const el=document.getElementById(id); if(el) el.value=val||""; };
+      fill("editName",     d.name);
+      fill("editMobile",   d.mobile);
+      fill("editLocation", d.location);
+      fill("editAge",      d.age);
+      const editBlood = document.getElementById("editBlood");
+      if(editBlood && d.bloodGroup) editBlood.value = d.bloodGroup;
+      const score = d.healthScore || 0;
+      const color = score>=80?"#4caf50":score>=50?"#ff9800":"#d90429";
+      const profileBar = document.getElementById("profileScoreBar");
+      if(profileBar){
+        profileBar.innerHTML = percentBar(score, color) +
+          `<p style="color:${color};font-weight:bold;margin-top:4px">
+            ${score>=80?"✅ Eligible to Donate!":score>=50?"⚠️ Partially Eligible":"❌ Not Eligible — Do Blood Checkup"}
+          </p>`;
+      }
+    })
+    .catch(err => console.error("loadMyProfile error:", err));
+}
+
+// ================= SAVE PROFILE =================
+function saveProfile(){
+  const user = auth.currentUser;
+  if(!user){ alert("Not logged in"); return; }
+  const name       = (document.getElementById("editName")||{}).value||"";
+  const mobile     = (document.getElementById("editMobile")||{}).value||"";
+  const location   = (document.getElementById("editLocation")||{}).value||"";
+  const age        = (document.getElementById("editAge")||{}).value||"";
+  const editBlood  = document.getElementById("editBlood");
+  const bloodGroup = editBlood ? editBlood.value : "";
+  if(!name.trim()||!mobile.trim()||!location.trim()){
+    alert("Name, Mobile and Location are required."); return;
+  }
+  const updateData = { name:name.trim(), mobile:mobile.trim(), location:location.trim(), age:age.trim() };
+  if(bloodGroup && bloodGroup !== "Select Blood Group" && bloodGroup !== "") updateData.bloodGroup = bloodGroup;
+  const btn = document.querySelector("#editProfilePage button");
+  if(btn){ btn.innerHTML="⏳ Saving..."; btn.disabled=true; }
+  db.collection("users").doc(user.uid).update(updateData)
+    .then(() => {
+      if(btn){ btn.innerHTML="💾 Save Changes"; btn.disabled=false; }
+      alert("✅ Profile Updated Successfully!");
+      loadMyProfile();
+      showFeature("profileInfoPage");
+    })
+    .catch(err => {
+      if(btn){ btn.innerHTML="💾 Save Changes"; btn.disabled=false; }
+      if(err.code==="not-found"){
+        db.collection("users").doc(user.uid).set(updateData,{merge:true})
+          .then(()=>{ alert("✅ Profile Saved!"); loadMyProfile(); showFeature("profileInfoPage"); })
+          .catch(e=>alert("Failed: "+e.message));
+      } else { alert("Update Failed: "+err.message); }
+    });
+}
+
+// ================= UPLOAD PHOTO =================
+function uploadPhoto(){ alert("Photo uploaded successfully!"); }
+
+// ================= CHANGE PASSWORD =================
+function changePassword(){
+  const pwdEl = document.getElementById("newPassword");
+  if(!pwdEl) return;
+  const pwd = pwdEl.value.trim();
+  if(!pwd){ alert("Please enter a new password."); return; }
+  if(pwd.length<6){ alert("Password must be at least 6 characters."); return; }
+  auth.currentUser.updatePassword(pwd)
+    .then(()=>{ alert("✅ Password Updated!"); pwdEl.value=""; })
+    .catch(err=>{
+      if(err.code==="auth/requires-recent-login") alert("⚠️ Please logout and login again first.");
+      else alert(err.message);
+    });
+}
+
+// ================= DELETE ACCOUNT =================
+function deleteAccount(){
+  if(!confirm("Are you sure? This is PERMANENT.")) return;
+  const user = auth.currentUser;
+  db.collection("users").doc(user.uid).delete()
+    .then(()=>user.delete())
+    .then(()=>{ alert("Account deleted"); window.location.href="login.html"; })
+    .catch(err=>alert(err.message));
+}
+
+// ================= DONATION HISTORY =================
+function loadDonationHistory(){
+  const user = auth.currentUser;
+  if(!user) return;
+  const el = document.getElementById("donationHistoryList");
+  if(!el) return;
+  el.innerHTML = "<p>Loading...</p>";
+  db.collection("donations").where("uid","==",user.uid).orderBy("time","desc")
+    .onSnapshot(snapshot => {
+      if(snapshot.empty){ el.innerHTML="<p style='color:#999'>No donation history yet.</p>"; return; }
+      let html="";
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const t = d.time ? new Date(d.time.toDate()).toLocaleString() : "N/A";
+        html+=`<div style="background:#fff3f3;border-left:4px solid #d90429;padding:12px;margin:8px 0;border-radius:8px">
+          🩸 <b>${d.bloodGroup||"N/A"}</b> Donated at 🏥 ${d.hospital||"N/A"}
+          <br><small style="color:#999">📅 ${t}</small>
+        </div>`;
+      });
+      el.innerHTML=html;
+    });
+}
+
+// ================= FIND DONORS =================
+function findDonors(){
+  const blood   = document.getElementById("searchBlood").value;
+  const results = document.getElementById("results");
+  const user    = auth.currentUser;
+  if(results) results.innerHTML="<p>Searching...</p>";
+  db.collection("users").where("bloodGroup","==",blood).onSnapshot(snapshot => {
+    let html=""; let found=0;
+    snapshot.forEach(doc => {
+      if(user && doc.id===user.uid) return;
+      const u = doc.data();
+      const hScore = u.healthScore||0;
+      const hColor = hScore>=80?"#4caf50":hScore>=50?"#ff9800":"#d90429";
+      found++;
+      html+=`
+        <div class="card">
+          <img src="${u.image||'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}"
+            style="width:60px;height:60px;border-radius:50%;object-fit:cover;display:block;margin:auto">
+          <h3>${u.name||"Donor"}</h3>
+          <p>🩸 <b>${u.bloodGroup}</b></p>
+          <p>📍 ${u.location||"N/A"}</p>
+          <p>📱 ${u.mobile||"N/A"}</p>
+          <p>${u.online?"🟢 Online":"⚪ Offline"}</p>
+          <p style="color:${hColor};font-weight:bold">❤️ Health: ${hScore}%</p>
+          <p style="color:${u.canDonate?"#4caf50":"#d90429"};font-weight:bold">
+            ${u.canDonate?"✅ Can Donate":"❌ Cannot Donate"}
+          </p>
+          <button onclick="startChatWith('${doc.id}','${u.name}')">💬 Chat</button>
+        </div>`;
+    });
+    if(found===0) html="<p>No other donors found for "+blood+".</p>";
+    if(results) results.innerHTML=html;
+  });
+}
+
+// ================= CHAT =================
+function loadGroupChat(){
+  loadChatUsersList();
+  const chatBox = document.getElementById("chatBox");
+  if(!chatBox) return;
+  db.collection("messages").orderBy("time").onSnapshot(snapshot => {
+    let chat="";
+    snapshot.forEach(doc => {
+      const msg = doc.data();
+      const isMe = auth.currentUser && msg.uid===auth.currentUser.uid;
+      chat+=`<div style="text-align:${isMe?"right":"left"};margin:8px 0">
+        <div style="display:inline-block;background:${isMe?"#d90429":"#f0f0f0"};
+          color:${isMe?"white":"black"};padding:8px 14px;border-radius:16px;max-width:70%">
+          <small><b>${isMe?"You":(msg.sender||"User")}</b></small><br>${msg.message}
+        </div></div>`;
+    });
+    chatBox.innerHTML=chat||"<p style='text-align:center;color:#999'>Say hello! 👋</p>";
+    chatBox.scrollTop=chatBox.scrollHeight;
+  });
+}
+
+function loadChatUsersList(){
+  const user = auth.currentUser;
+  const listEl = document.getElementById("chatUsersList");
+  if(!listEl) return;
+  db.collection("users").onSnapshot(snapshot => {
+    let html="";
+    snapshot.forEach(doc => {
+      if(user && doc.id===user.uid) return;
+      const u = doc.data();
+      html+=`<div onclick="startChatWith('${doc.id}','${u.name}')"
+        style="display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;
+               border-bottom:1px solid #eee;border-radius:8px"
+        onmouseover="this.style.background='#fff3f3'" onmouseout="this.style.background='transparent'">
+        <img src="${u.image||'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}"
+          style="width:40px;height:40px;border-radius:50%;object-fit:cover">
+        <div>
+          <b style="font-size:14px">${u.name||"User"}</b><br>
+          <small style="color:${u.online?"green":"#999"}">${u.online?"🟢 Online":"⚪ Offline"}</small>
+          <small style="color:#d90429;margin-left:6px">🩸${u.bloodGroup||""}</small>
+        </div>
+      </div>`;
+    });
+    listEl.innerHTML=html||"<p style='color:#999;padding:10px'>No other users yet</p>";
+  });
+}
+
+function startChatWith(uid, name){
+  selectedChatUser = { uid, name };
+  const header = document.getElementById("chatHeader");
+  if(header) header.innerHTML=`💬 Chat with <b style="color:#d90429">${name}</b>`;
+  openSection("chatSection");
+  const user = auth.currentUser;
+  if(!user) return;
+  const chatRoomId = [user.uid, uid].sort().join("_");
+  const chatBox = document.getElementById("chatBox");
+  if(!chatBox) return;
+  db.collection("privateMessages").doc(chatRoomId).collection("messages").orderBy("time")
+    .onSnapshot(snapshot => {
+      let chat="";
+      if(snapshot.empty) chat=`<p style='text-align:center;color:#999'>Start chatting with ${name} 🩸</p>`;
+      snapshot.forEach(doc => {
+        const msg = doc.data();
+        const isMe = msg.uid===user.uid;
+        chat+=`<div style="text-align:${isMe?"right":"left"};margin:8px 0">
+          <div style="display:inline-block;background:${isMe?"#d90429":"#f0f0f0"};
+            color:${isMe?"white":"black"};padding:8px 14px;border-radius:16px;max-width:70%">
+            <small><b>${isMe?"You":name}</b></small><br>${msg.message}
+          </div></div>`;
+      });
+      chatBox.innerHTML=chat;
+      chatBox.scrollTop=chatBox.scrollHeight;
+    });
+}
+
+function sendMessage(){
+  const input   = document.getElementById("messageInput");
+  const message = input.value.trim();
+  if(!message) return;
+  const user = auth.currentUser;
+  if(!user){ alert("Please login first"); return; }
+  if(selectedChatUser){
+    const chatRoomId = [user.uid, selectedChatUser.uid].sort().join("_");
+    db.collection("privateMessages").doc(chatRoomId).collection("messages").add({
+      uid: user.uid, sender: user.email, message,
+      time: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } else {
+    db.collection("messages").add({
+      uid: user.uid, sender: user.email, email: user.email, message,
+      time: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  input.value="";
+}
+
+// ================= ONLINE USERS =================
+function loadOnlineUsers(){
+  const user = auth.currentUser;
+  db.collection("users").where("online","==",true).onSnapshot(snapshot => {
+    let html=""; let count=0;
+    snapshot.forEach(doc => {
+      if(user && doc.id===user.uid) return;
+      const u = doc.data();
+      const hScore = u.healthScore||0;
+      const hColor = hScore>=80?"#4caf50":hScore>=50?"#ff9800":"#d90429";
+      count++;
+      html+=`<div class="card">
+        <img src="${u.image||'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}"
+          style="width:60px;height:60px;border-radius:50%;object-fit:cover;display:block;margin:auto">
+        <h3>${u.name||"User"}</h3>
+        <p>🩸 ${u.bloodGroup||"N/A"}</p>
+        <p>📍 ${u.location||"N/A"}</p>
+        <p style="color:green">🟢 Online Now</p>
+        <p style="color:${hColor};font-weight:bold">❤️ ${hScore}% Health</p>
+        <p style="color:${u.canDonate?"#4caf50":"#d90429"};font-weight:bold">
+          ${u.canDonate?"✅ Can Donate":"❌ Cannot Donate"}
+        </p>
+        <button onclick="startChatWith('${doc.id}','${u.name}')">💬 Chat</button>
+      </div>`;
+    });
+    if(count===0) html="<p>No other users online.</p>";
+    const el = document.getElementById("onlineUsers");
+    if(el) el.innerHTML=html;
+  });
+}
+
+// ================= NOTIFICATIONS =================
+function loadNotifications(){
+  db.collection("alerts").orderBy("time","desc").limit(20).onSnapshot(snapshot => {
+    let html="";
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const t = d.time ? new Date(d.time.toDate()).toLocaleString() : "Just now";
+      html+=`<div style="background:#fff3f3;border-left:4px solid #d90429;padding:12px;margin:8px 0;border-radius:8px">
+        🚨 <b>${d.blood}</b> Blood Needed at <b>${d.hospital}</b>
+        <small style="display:block;color:#999;margin-top:4px">${t}</small>
+      </div>`;
+    });
+    const el = document.getElementById("notificationList");
+    if(el) el.innerHTML=html||"<p>No notifications yet.</p>";
+  });
+}
+
+// ================= EMERGENCY SOUND =================
+db.collection("alerts").orderBy("time","desc").limit(1).onSnapshot(snapshot => {
+  snapshot.docChanges().forEach(change => {
+    if(change.type==="added" && soundEnabled){
+      try {
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        osc.connect(ctx.destination);
+        osc.frequency.value=880;
+        osc.start(); osc.stop(ctx.currentTime+0.3);
+      } catch(e){}
+    }
+  });
+});
+
+// ================= SEND EMERGENCY =================
+function sendEmergency(){
+  const blood    = document.getElementById("bloodGroup").value;
+  const hospital = document.getElementById("hospital").value.trim();
+  if(!hospital){ alert("Please enter hospital name"); return; }
+  const user = auth.currentUser;
+  db.collection("alerts").add({
+    blood, hospital,
+    sentBy: user?user.email:"anonymous",
+    uid:    user?user.uid:"",
+    time:   firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    if(user){
+      db.collection("donations").add({
+        uid: user.uid, bloodGroup: blood, hospital,
+        time: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    alert("🚨 Emergency Alert Sent!");
+    document.getElementById("hospital").value="";
+  }).catch(err=>alert(err.message));
+}
+
+// ================= SOUND =================
+function toggleSound(){
+  soundEnabled=!soundEnabled;
+  alert(soundEnabled?"🔔 Sound ON":"🔕 Sound OFF");
+}
+
+// ================= LOCATION =================
+function getLocation(){
+  if(!navigator.geolocation){ alert("Geolocation not supported"); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude.toFixed(4);
+    const lng = pos.coords.longitude.toFixed(4);
+    const el  = document.getElementById("locationText");
+    if(el) el.innerHTML=`📍 Your Location:<br>
+      <b>Latitude:</b> ${lat}<br><b>Longitude:</b> ${lng}<br>
+      <small><a href="https://maps.google.com/?q=${lat},${lng}" target="_blank">🗺️ View on Google Maps</a></small>`;
+  }, () => {
+    const el = document.getElementById("locationText");
+    if(el) el.innerHTML="📍 Location access denied.";
+  });
+}
+
+// ================= INVENTORY =================
+function loadInventory(){
+  const groups = ["A+","B+","O+","AB+","A-","B-","O-","AB-"];
+  const el     = document.getElementById("inventoryCards");
+  if(!el) return;
+  groups.forEach(group => {
+    db.collection("users").where("bloodGroup","==",group).onSnapshot(snapshot => {
+      const count  = snapshot.size;
+      const status = count===0?"Critical":count<3?"Low":"Available";
+      const color  = count===0?"#d90429":count<3?"#ff9800":"#4caf50";
+      let card = document.getElementById("inv_"+group.replace("+","plus").replace("-","minus"));
+      if(!card){
+        card = document.createElement("div");
+        card.id = "inv_"+group.replace("+","plus").replace("-","minus");
+        card.className="card inventory-card";
+        card.style.textAlign="center"; card.style.padding="20px";
+        el.appendChild(card);
+      }
+      card.innerHTML=`<h2 style="color:${color};font-size:28px">${group}</h2>
+        <p><b>${count}</b> Donors</p>
+        <span style="background:${color};color:white;padding:4px 12px;border-radius:20px;font-size:12px">${status}</span>`;
+    });
+  });
+}
+
+// ================= BLOOD REPORTS =================
+function loadBloodReports(){
+  const el = document.getElementById("bloodReportContent");
+  if(!el) return;
+  el.innerHTML="<p style='text-align:center;color:#999'>📊 Loading reports...</p>";
+  const groups = ["A+","B+","O+","AB+","A-","B-","O-","AB-"];
+  const counts = {};
+  let done=0;
+  groups.forEach(group => {
+    db.collection("users").where("bloodGroup","==",group).get().then(snapshot => {
+      counts[group]=snapshot.size; done++;
+      if(done===groups.length) renderBloodReport(counts);
+    });
+  });
+}
+
+function renderBloodReport(counts){
+  const el     = document.getElementById("bloodReportContent");
+  if(!el) return;
+  const groups = ["A+","B+","O+","AB+","A-","B-","O-","AB-"];
+  const total  = groups.reduce((s,g)=>s+(counts[g]||0),0);
+  const maxVal = Math.max(...groups.map(g=>counts[g]||0),1);
+  const colors = {"A+":"#d90429","B+":"#ef233c","O+":"#e63946","AB+":"#c1121f","A-":"#ff6b6b","B-":"#ff8787","O-":"#ffa8a8","AB-":"#ffc9c9"};
+  const sColor = c => c===0?"#d90429":c<3?"#ff9800":"#4caf50";
+  const sText  = c => c===0?"🔴 Critical":c<3?"🟡 Low":"🟢 Available";
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px">
+      <div style="background:linear-gradient(135deg,#d90429,#ef233c);color:white;padding:20px;border-radius:12px;text-align:center">
+        <div style="font-size:32px;font-weight:bold">${total}</div><div>Total Donors</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#4caf50,#388e3c);color:white;padding:20px;border-radius:12px;text-align:center">
+        <div style="font-size:32px;font-weight:bold">${groups.filter(g=>(counts[g]||0)>=3).length}</div><div>Available Groups</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#ff9800,#f57c00);color:white;padding:20px;border-radius:12px;text-align:center">
+        <div style="font-size:32px;font-weight:bold">${groups.filter(g=>(counts[g]||0)>0&&(counts[g]||0)<3).length}</div><div>Low Stock</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#333,#555);color:white;padding:20px;border-radius:12px;text-align:center">
+        <div style="font-size:32px;font-weight:bold">${groups.filter(g=>(counts[g]||0)===0).length}</div><div>Critical</div>
+      </div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+      <h3 style="color:#d90429;margin-bottom:16px">📊 Blood Group Distribution</h3>
+      <div style="display:flex;align-items:flex-end;gap:12px;height:200px;padding:0 8px;border-bottom:2px solid #eee;border-left:2px solid #eee">
+        ${groups.map(g=>{
+          const count=counts[g]||0;
+          const height=Math.round((count/maxVal)*160);
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span style="font-size:12px;font-weight:bold">${count}</span>
+            <div style="width:100%;height:${height}px;background:${colors[g]};border-radius:6px 6px 0 0;min-height:${count>0?4:0}px"></div>
+            <span style="font-size:11px;font-weight:bold">${g}</span>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+      <h3 style="color:#d90429;margin-bottom:16px">📋 Detailed Report</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr style="background:#d90429;color:white">
+          <th style="padding:10px;text-align:left">Blood Group</th>
+          <th style="padding:10px;text-align:center">Donors</th>
+          <th style="padding:10px;text-align:center">Units</th>
+          <th style="padding:10px;text-align:center">Status</th>
+          <th style="padding:10px;text-align:center">Stock %</th>
+        </tr></thead>
+        <tbody>
+          ${groups.map((g,i)=>{
+            const count=counts[g]||0;
+            const pct=maxVal>0?Math.round((count/maxVal)*100):0;
+            return `<tr style="background:${i%2===0?"#fff":"#fafafa"};border-bottom:1px solid #eee">
+              <td style="padding:10px"><span style="background:${colors[g]};color:white;padding:4px 10px;border-radius:20px;font-weight:bold">${g}</span></td>
+              <td style="padding:10px;text-align:center;font-weight:bold">${count}</td>
+              <td style="padding:10px;text-align:center">${count*2} units</td>
+              <td style="padding:10px;text-align:center;color:${sColor(count)};font-weight:bold">${sText(count)}</td>
+              <td style="padding:10px">
+                <div style="background:#eee;border-radius:20px;height:10px;overflow:hidden">
+                  <div style="width:${pct}%;background:${sColor(count)};height:100%;border-radius:20px"></div>
+                </div>
+                <small style="color:#999">${pct}%</small>
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <button onclick="loadBloodReports()" style="background:#d90429;color:white;border:none;padding:12px 32px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:bold">🔄 Refresh Report</button>
+    </div>`;
+}
+
+// ================= BLOOD CHECKUP — LOAD USER DATA =================
+function loadBloodCheckup(){
+  const user = auth.currentUser;
+  if(!user) return;
+  checkupScores = {};
+  db.collection("users").doc(user.uid).onSnapshot(doc => {
+    if(!doc.exists) return;
+    const d = doc.data();
+    const set = (id,val) => { const el=document.getElementById(id); if(el) el.innerHTML=val||"--"; };
+    set("checkupName",  "👤 "+(d.name||"User"));
+    set("checkupBlood", "🩸 Blood Group: <b>"+(d.bloodGroup||"N/A")+"</b>");
+    set("checkupAge",   "🎂 Age: "+(d.age||"N/A")+" | 📍 "+(d.location||"N/A"));
+    const photo = document.getElementById("checkupPhoto");
+    if(photo) photo.src = d.image||"https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+    let score=0;
+    const age = parseInt(d.age)||0;
+    if(age>=18 && age<=65) score+=25;
+    if((d.bloodUnits||0)>=2) score+=25;
+    if(d.name && d.mobile && d.bloodGroup && d.location) score+=25;
+    if(d.bloodGroup && d.bloodGroup!=="") score+=25;
+    updateOverallScore("profile", score);
+  });
+  loadCheckupHistory();
+}
+
+// ================= PERCENTAGE BAR =================
+function percentBar(pct, color){
+  return `
+    <div style="background:#eee;border-radius:20px;height:16px;overflow:hidden;margin:8px 0">
+      <div style="width:${pct}%;background:${color};height:100%;border-radius:20px;transition:width 1.2s ease"></div>
+    </div>
+    <div style="text-align:right;font-size:14px;font-weight:bold;color:${color}">${pct}%</div>`;
+}
+
+// ================= UPDATE OVERALL SCORE =================
+function updateOverallScore(type, pct){
+  checkupScores[type] = pct;
+  const values  = Object.values(checkupScores);
+  const overall = Math.round(values.reduce((a,b)=>a+b,0)/values.length);
+  const color   = overall>=80?"#4caf50":overall>=50?"#ff9800":"#d90429";
+  const circleEl = document.getElementById("overallScorePct");
+  if(circleEl) circleEl.innerHTML = overall+"%";
+  const circle = document.getElementById("overallScoreCircle");
+  if(circle) circle.style.borderColor = color;
+  const statusEl = document.getElementById("myHealthStatus");
+  if(statusEl) statusEl.innerHTML = `<span style="color:${color};font-weight:bold">${overall}% Health</span>`;
+  const badge = document.getElementById("donationBadge");
+  if(badge){
+    if(overall>=80){ badge.innerHTML="✅ "+overall+"% — YOU ARE ELIGIBLE TO DONATE BLOOD! 🩸"; badge.style.background="rgba(76,175,80,0.3)"; }
+    else if(overall>=50){ badge.innerHTML="⚠️ "+overall+"% — PARTIALLY ELIGIBLE. Improve health."; badge.style.background="rgba(255,152,0,0.3)"; }
+    else { badge.innerHTML="❌ "+overall+"% — NOT ELIGIBLE. Complete all checkup tabs."; badge.style.background="rgba(217,4,41,0.3)"; }
+  }
+  const user = auth.currentUser;
+  if(user){
+    db.collection("users").doc(user.uid).update({
+      healthScore: overall,
+      canDonate:   overall>=80,
+      lastCheckup: new Date()
+    });
+  }
+}
+
+// ================= SHOW CHECKUP TAB =================
+function showCheckupTab(tabId){
+  document.querySelectorAll(".checkup-tab").forEach(t=>t.style.display="none");
+  document.getElementById(tabId).style.display="block";
+  ["symptoms","hb","bp","sugar","eligibility","history"].forEach(t=>{
+    const btn=document.getElementById("tab_"+t);
+    if(btn){ btn.style.background="#eee"; btn.style.color="#333"; }
+  });
+  const map={symptomsTab:"symptoms",hbTab:"hb",bpTab:"bp",sugarTab:"sugar",eligibilityTab:"eligibility",historyTab:"history"};
+  const btn=document.getElementById("tab_"+map[tabId]);
+  if(btn){ btn.style.background="#d90429"; btn.style.color="white"; }
+  if(tabId==="historyTab") loadCheckupHistory();
+}
+
+// ================= ANALYZE SYMPTOMS =================
+function analyzeSymptoms(){
+  const labels=["😴 Extreme Fatigue","😰 Pale Skin","💨 Shortness of Breath","🤕 Frequent Headaches",
+    "💫 Dizziness","❄️ Cold Hands & Feet","💔 Chest Pain","😬 Brittle Nails",
+    "👅 Swollen Tongue","🥶 Always Feeling Cold","😵 Irregular Heartbeat","🤢 Nausea"];
+  const symptoms=[];
+  const symptomKeys=["fatigue","pale skin","shortness of breath","headache","dizziness",
+    "cold hands","chest pain","brittle nails","swollen tongue","feeling cold","irregular heartbeat","nausea"];
+  for(let i=1;i<=12;i++){
+    const el=document.getElementById("s"+i);
+    if(el&&el.checked) symptoms.push(symptomKeys[i-1]);
+  }
+  const el    = document.getElementById("symptomResult");
+  const count = symptoms.length;
+  const pct   = Math.round(100-(count/12)*100);
+
+  let disease="", doctor="", hospital="", location="", mapLink="", emergency="", doctorName="", experience="", contact="";
+
+  if(symptoms.includes("chest pain") || symptoms.includes("irregular heartbeat")){
+    disease="🚨 Heart Related Symptoms"; doctor="❤️ Cardiologist";
+    hospital="Fortis Hospital"; location="Chennai";
+    mapLink="https://www.google.com/maps?q=Fortis+Hospital+Chennai";
+    emergency="🚑 Please visit hospital immediately.";
+    doctorName="Dr. Arun Prakash"; experience="15 Years"; contact="+91 9876501234";
+  } else if(symptoms.includes("fatigue") && symptoms.includes("pale skin") && symptoms.includes("dizziness")){
+    disease="⚠️ Possible Anemia Detected"; doctor="🩸 Hematologist";
+    hospital="Apollo Hospital"; location="Chennai";
+    mapLink="https://www.google.com/maps?q=Apollo+Hospital+Chennai";
+    emergency="🥗 Eat iron rich foods and consult doctor immediately.";
+    doctorName="Dr. Rajesh Kumar"; experience="12 Years"; contact="+91 9876543210";
+  } else if(symptoms.includes("shortness of breath")){
+    disease="🫁 Breathing Issue Detected"; doctor="🫁 Pulmonologist";
+    hospital="Global Hospital"; location="Chennai";
+    mapLink="https://www.google.com/maps?q=Global+Hospital+Chennai";
+    emergency="😷 Avoid dust and consult lung specialist.";
+    doctorName="Dr. Naveen Kumar"; experience="11 Years"; contact="+91 9988776655";
+  } else if(symptoms.includes("nausea") && symptoms.includes("headache")){
+    disease="🤒 Possible Viral Fever / Infection"; doctor="👨‍⚕️ General Physician";
+    hospital="MIOT Hospital"; location="Chennai";
+    mapLink="https://www.google.com/maps?q=MIOT+Hospital+Chennai";
+    emergency="💧 Drink more water and take proper rest.";
+    doctorName="Dr. Priya Sharma"; experience="10 Years"; contact="+91 9123456780";
+  } else if(count===0){
+    el.innerHTML=`<div style="background:#e8f5e9;border-radius:10px;padding:16px;color:green">✅ No symptoms! You are in good health!</div>`;
+    updateOverallScore("symptoms",100);
+    return;
+  } else {
+    disease="✅ No Major Disease Detected"; doctor="👨‍⚕️ General Doctor";
+    hospital="Nearby Government Hospital"; location="Your Area";
+    mapLink="https://www.google.com/maps";
+    emergency="😊 Maintain healthy lifestyle.";
+    doctorName="Dr. General Physician"; experience="8 Years"; contact="+91 9000000000";
+  }
+
+  saveCheckupRecord({ type:"Symptoms Check", result:disease, symptomsCount:count });
+  updateOverallScore("symptoms", pct);
+
+  el.innerHTML=`
+    <div style="background:white;padding:25px;border-radius:15px;box-shadow:0 4px 15px rgba(0,0,0,0.1);margin-top:20px;border-left:6px solid #d90429">
+      <h2 style="color:#d90429;margin-bottom:15px">${disease}</h2>
+      <div style="background:#fff3f3;padding:15px;border-radius:10px;margin-bottom:15px">
+        <h3>👨‍⚕️ Recommended Doctor</h3>
+        <p><b>Doctor Name:</b> ${doctorName}</p>
+        <p><b>Specialist:</b> ${doctor}</p>
+        <p><b>Experience:</b> ${experience}</p>
+        <p><b>Contact:</b> ${contact}</p>
+      </div>
+      <div style="background:#f5f5f5;padding:15px;border-radius:10px;margin-bottom:15px">
+        <h3>🏥 Hospital Details</h3>
+        <p><b>Hospital:</b> ${hospital}</p>
+        <p><b>Location:</b> ${location}</p>
+      </div>
+      <div style="background:#fff8e1;padding:15px;border-radius:10px;margin-bottom:20px">
+        <h3>🚨 Emergency Suggestion</h3>
+        <p>${emergency}</p>
+      </div>
+      <p style="color:#999;font-size:12px;margin-bottom:12px">⚠️ Not a medical diagnosis. Consult a certified doctor.</p>
+      <a href="${mapLink}" target="_blank">
+        <button style="width:100%;background:#d90429;color:white;border:none;padding:14px;border-radius:10px;cursor:pointer;font-size:16px;font-weight:bold">
+          📍 Open Hospital Location
+        </button>
+      </a>
+    </div>`;
+}
+
+// ================= CHECK HEMOGLOBIN =================
+function checkHemoglobin(){
+  const val    = parseFloat(document.getElementById("hbValue").value);
+  const gender = document.getElementById("hbGender").value;
+  const el     = document.getElementById("hbResult");
+  if(!val){ el.innerHTML="<p style='color:red'>Please enter hemoglobin value.</p>"; return; }
+  let min,max,label,color,advice;
+  if(gender==="male")          { min=13.5; max=17.5; }
+  else if(gender==="female")   { min=12.0; max=15.5; }
+  else if(gender==="pregnant") { min=11.0; max=14.0; }
+  else                         { min=11.5; max=15.5; }
+  const pct = Math.min(100,Math.round((val/max)*100));
+  if(val<min){      label="LOW — Anemia Detected 🔴";        color="#d90429"; advice="Eat iron-rich foods. NOT eligible to donate now."; }
+  else if(val>max){ label="HIGH — Polycythemia Possible 🟡"; color="#ff9800"; advice="Consult a doctor. Stay hydrated."; }
+  else {            label="NORMAL — Healthy Level ✅";        color="#4caf50"; advice="Hemoglobin healthy! Likely eligible to donate!"; }
+  saveCheckupRecord({ type:"Hemoglobin", result:label, value:val, gender });
+  updateOverallScore("hb", pct);
+  el.innerHTML=`
+    <div style="border-left:4px solid ${color};background:${color}11;border-radius:10px;padding:20px">
+      <h4 style="color:${color}">${label}</h4>
+      <p>Value: <b style="font-size:22px;color:${color}">${val} g/dL</b></p>
+      <p style="color:#666">Normal: ${min}–${max} g/dL</p>
+      ${percentBar(pct,color)}
+      <div style="background:white;border-radius:8px;padding:12px;margin-top:12px"><b>💡</b> ${advice}</div>
+      <p style="color:#999;font-size:12px;margin-top:10px">⚠️ Not a medical diagnosis.</p>
+    </div>`;
+}
+
+// ================= CHECK BLOOD PRESSURE =================
+function checkBloodPressure(){
+  const sys = parseInt(document.getElementById("bpSystolic").value);
+  const dia = parseInt(document.getElementById("bpDiastolic").value);
+  const el  = document.getElementById("bpResult");
+  if(!sys||!dia){ el.innerHTML="<p style='color:red'>Please enter both values.</p>"; return; }
+  let label,color,advice,healthPct;
+  if(sys<90||dia<60){        label="LOW BP 🔵";       color="#2196f3"; healthPct=60; advice="Drink water. Eat salty foods."; }
+  else if(sys<120&&dia<80){  label="NORMAL ✅";         color="#4caf50"; healthPct=100; advice="Perfect BP! Eligible to donate!"; }
+  else if(sys<130&&dia<80){  label="ELEVATED 🟡";       color="#ff9800"; healthPct=70; advice="Reduce salt, exercise regularly."; }
+  else if(sys<140||dia<90){  label="HIGH Stage 1 🟠";   color="#ff5722"; healthPct=40; advice="Consult doctor. Reduce salt."; }
+  else {                     label="HIGH Stage 2 🔴";   color="#d90429"; healthPct=20; advice="See doctor immediately. NOT eligible."; }
+  saveCheckupRecord({ type:"Blood Pressure", result:label, systolic:sys, diastolic:dia });
+  updateOverallScore("bp", healthPct);
+  el.innerHTML=`
+    <div style="border-left:4px solid ${color};background:${color}11;border-radius:10px;padding:20px">
+      <h4 style="color:${color}">${label}</h4>
+      <p>Systolic: <b style="font-size:20px;color:${color}">${sys} mmHg</b></p>
+      <p>Diastolic: <b style="font-size:20px;color:${color}">${dia} mmHg</b></p>
+      ${percentBar(healthPct,color)}
+      <div style="background:white;border-radius:8px;padding:12px;margin-top:12px"><b>💡</b> ${advice}</div>
+      <p style="color:#999;font-size:12px;margin-top:10px">⚠️ Not a medical diagnosis.</p>
+    </div>`;
+}
+
+// ================= CHECK BLOOD SUGAR =================
+function checkBloodSugar(){
+  const val  = parseFloat(document.getElementById("sugarValue").value);
+  const type = document.getElementById("sugarType").value;
+  const el   = document.getElementById("sugarResult");
+  if(!val){ el.innerHTML="<p style='color:red'>Please enter sugar level.</p>"; return; }
+  let label,color,advice,pct;
+  if(type==="fasting"){
+    if(val<70){        label="LOW SUGAR 🔵";    color="#2196f3"; pct=50;  advice="Eat something sweet immediately."; }
+    else if(val<=100){ label="NORMAL ✅";         color="#4caf50"; pct=100; advice="Fasting sugar normal. Eligible!"; }
+    else if(val<=125){ label="PRE-DIABETES 🟡"; color="#ff9800"; pct=55;  advice="Reduce sugar. Consult doctor."; }
+    else {             label="DIABETES 🔴";      color="#d90429"; pct=20;  advice="Consult doctor. NOT eligible."; }
+  } else {
+    if(val<70){        label="LOW SUGAR 🔵";    color="#2196f3"; pct=50;  advice="Eat something sweet immediately."; }
+    else if(val<140){  label="NORMAL ✅";         color="#4caf50"; pct=100; advice="Post-meal sugar normal. Eligible!"; }
+    else if(val<200){  label="PRE-DIABETES 🟡"; color="#ff9800"; pct=55;  advice="Reduce carbs. Exercise after meals."; }
+    else {             label="DIABETES 🔴";      color="#d90429"; pct=20;  advice="High sugar. NOT eligible."; }
+  }
+  saveCheckupRecord({ type:"Blood Sugar", result:label, value:val, testType:type });
+  updateOverallScore("sugar", pct);
+  el.innerHTML=`
+    <div style="border-left:4px solid ${color};background:${color}11;border-radius:10px;padding:20px">
+      <h4 style="color:${color}">${label}</h4>
+      <p>Value: <b style="font-size:22px;color:${color}">${val} mg/dL</b> (${type==="fasting"?"Fasting":"After Meal"})</p>
+      ${percentBar(pct,color)}
+      <div style="background:white;border-radius:8px;padding:12px;margin-top:12px"><b>💡</b> ${advice}</div>
+      <p style="color:#999;font-size:12px;margin-top:10px">⚠️ Not a medical diagnosis.</p>
+    </div>`;
+}
+
+// ================= CHECK ELIGIBILITY =================
+function checkEligibility(){
+  const questions=["eli_age","eli_weight","eli_hb","eli_bp","eli_healthy","eli_notsick","eli_notatoo","eli_nosurg"];
+  let yesCount=0, unanswered=0;
+  questions.forEach(q=>{
+    const ans=document.querySelector(`input[name="${q}"]:checked`);
+    if(!ans) unanswered++;
+    else if(ans.value==="yes") yesCount++;
+  });
+  const el=document.getElementById("eligibilityResult");
+  if(unanswered>0){ el.innerHTML=`<p style="color:#ff9800">⚠️ Please answer all ${unanswered} remaining questions.</p>`; return; }
+  const pct   = Math.round((yesCount/questions.length)*100);
+  const color = pct===100?"#4caf50":pct>=75?"#ff9800":"#d90429";
+  let label,advice;
+  if(pct===100){ label="✅ FULLY ELIGIBLE TO DONATE!"; advice="You meet ALL criteria. Go donate and save a life! 🩸"; }
+  else if(pct>=75){ label="⚠️ PARTIALLY ELIGIBLE"; advice="Consult a doctor before donating."; }
+  else { label="❌ NOT ELIGIBLE NOW"; advice="Focus on health. Try again later."; }
+  saveCheckupRecord({ type:"Eligibility", result:label, score:yesCount, total:questions.length });
+  updateOverallScore("eligibility", pct);
+  el.innerHTML=`
+    <div style="border-left:4px solid ${color};background:${color}11;border-radius:10px;padding:20px">
+      <h4 style="color:${color}">${label}</h4>
+      <p>Score: <b style="font-size:22px;color:${color}">${yesCount}/${questions.length}</b></p>
+      ${percentBar(pct,color)}
+      <div style="background:white;border-radius:8px;padding:12px;margin-top:12px"><b>💡</b> ${advice}</div>
+    </div>`;
+}
+
+// ================= SAVE CHECKUP RECORD =================
+function saveCheckupRecord(data){
+  const user=auth.currentUser;
+  if(!user) return;
+  db.collection("checkups").add({ uid:user.uid, ...data, time:firebase.firestore.FieldValue.serverTimestamp() });
+}
+
+// ================= LOAD CHECKUP HISTORY =================
+function loadCheckupHistory(){
+  const user=auth.currentUser;
+  if(!user) return;
+  const el=document.getElementById("checkupHistoryList");
+  if(!el) return;
+  el.innerHTML="<p style='color:#999'>Loading...</p>";
+  db.collection("checkups").where("uid","==",user.uid).orderBy("time","desc").limit(20)
+    .onSnapshot(snapshot=>{
+      if(snapshot.empty){ el.innerHTML="<p style='color:#999'>No checkup history yet.</p>"; return; }
+      let html="";
+      snapshot.forEach(doc=>{
+        const d=doc.data();
+        const t=d.time?new Date(d.time.toDate()).toLocaleString():"Just now";
+        const color=d.result&&(d.result.includes("NORMAL")||d.result.includes("ELIGIBLE"))?"#4caf50":
+                    d.result&&d.result.includes("LOW")?"#2196f3":
+                    d.result&&(d.result.includes("HIGH")||d.result.includes("Anemia"))?"#d90429":"#ff9800";
+        html+=`<div style="background:white;border-left:4px solid ${color};padding:12px;margin:8px 0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
+          <div style="display:flex;justify-content:space-between">
+            <b style="color:${color}">${d.type||"Checkup"}</b>
+            <small style="color:#999">${t}</small>
+          </div>
+          <p style="margin-top:4px;color:#333">${d.result||""}</p>
+        </div>`;
+      });
+      el.innerHTML=html;
+    });
+}
+
+// ================= BLOOD BANK DATA =================
+const bloodBankRequests = [
+  { bank:"Red Cross Blood Bank",    blood:"O+",  units:12, hospital:"Apollo Hospital",     emergency:"High",     contact:"+91 9876543210" },
+  { bank:"LifeCare Blood Center",   blood:"A-",  units:6,  hospital:"SRM Hospital",         emergency:"Medium",   contact:"+91 9123456780" },
+  { bank:"Rotary Blood Bank",       blood:"B+",  units:8,  hospital:"Government Hospital",  emergency:"High",     contact:"+91 9988776655" },
+  { bank:"Government Blood Bank",   blood:"AB-", units:3,  hospital:"MIOT Hospital",        emergency:"Low",      contact:"+91 9090909090" },
+  { bank:"City Blood Center",       blood:"O-",  units:10, hospital:"Global Hospital",      emergency:"Critical", contact:"+91 8888888888" }
+];
+
+function loadBloodBanks(){
+  const container = document.querySelector("#bloodBankData .cards");
+  if(!container) return;
+  container.innerHTML = "";
+  bloodBankRequests.forEach(item => {
+    const color = item.emergency==="Critical"?"#7b0000":item.emergency==="High"?"#d90429":item.emergency==="Medium"?"#ff9800":"#4caf50";
+    container.innerHTML += `
+      <div class="card" style="background:white;padding:20px;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,0.1);margin-bottom:16px;border-left:8px solid ${color}">
+        <h2 style="color:#d90429;margin-bottom:10px">🏥 ${item.bank}</h2>
+        <p style="margin:8px 0;font-size:16px">🩸 <b>Blood Needed:</b> ${item.blood}</p>
+        <p style="margin:8px 0;font-size:16px">💉 <b>Units Required:</b> ${item.units} Units</p>
+        <p style="margin:8px 0;font-size:16px">🏨 <b>Hospital:</b> ${item.hospital}</p>
+        <p style="margin:8px 0;font-size:16px">🚨 <b>Emergency:</b>
+          <span style="background:${color};color:white;padding:4px 10px;border-radius:20px;font-size:13px">${item.emergency}</span>
+        </p>
+        <p style="margin:8px 0;font-size:16px">📞 <b>Contact:</b> ${item.contact}</p>
+        <button onclick="requestDonation('${item.bank}','${item.blood}')"
+          style="margin-top:12px;background:#d90429;color:white;border:none;padding:12px 18px;border-radius:8px;cursor:pointer;width:100%;font-size:15px;font-weight:bold">
+          ❤️ Donate Blood
+        </button>
+      </div>`;
+  });
+}
+
+function requestDonation(bank, blood){
+  alert("Thank you for donating!\n\nBlood Bank: " + bank + "\nBlood Group Needed: " + blood);
+}
+
+// ================= OPEN NEAREST HOSPITAL =================
+function openNearestHospital(){
+  if(!navigator.geolocation){ alert("Geolocation not supported"); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    window.open("https://www.google.com/maps/search/hospitals/@"+lat+","+lng+",15z","_blank");
+  }, () => {
+    window.open("https://www.google.com/maps/search/hospitals","_blank");
+  });
+}
+
+// ================= DARK MODE =================
+function darkMode(){
+  document.body.classList.toggle("dark-mode");
+  localStorage.setItem("darkMode", document.body.classList.contains("dark-mode"));
+}
+
+// ================= LOGOUT =================
+function logout(){
+  const user=auth.currentUser;
+  const doLogout=()=>auth.signOut().then(()=>window.location.href="login.html");
+  if(user){ db.collection("users").doc(user.uid).update({online:false}).then(doLogout).catch(doLogout); }
+  else doLogout();
+}
+
+// ================= AUTO LOAD (SINGLE window.onload) =================
+window.onload = function(){
+  if(localStorage.getItem("darkMode")==="true") document.body.classList.add("dark-mode");
+  loadBloodBanks();
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      loadMyProfile();
+      loadOnlineUsers();
+      loadInventory();
+      loadNotifications();
+      loadDashboardCounts();
+      loadBloodCheckup();
+    }
+  });
+};

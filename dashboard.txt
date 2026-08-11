@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeLink Blood AI v3 — Real-Time</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:#d90429;--red2:#ff4757;--dark:#0d0d1a;--dark2:#16162a;--card:#ffffff;
+  --bg:#f2f3f7;--text:#0d0d1a;--muted:#8892a4;--border:#e8eaf0;
+  --green:#00c896;--orange:#ff9f43;--blue:#3a86ff;--sw:250px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;overflow-x:hidden}
+
+/* SIDEBAR */
+.sb{width:var(--sw);background:var(--dark);color:#fff;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sb-logo{padding:22px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.sb-logo span{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--red2)}
+.sb-logo sub{font-size:10px;color:#8892a4;letter-spacing:1px;text-transform:uppercase;margin-left:2px}
+.sb ul{list-style:none;padding:10px 0;flex:1}
+.sb li{padding:11px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:500;border-radius:0;transition:all .18s;color:#b0b8c9;position:relative}
+.sb li:hover,.sb li.act{background:rgba(217,4,41,.15);color:var(--red2)}
+.sb li .nb{margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700}
+.sb-lang{padding:14px 18px;border-top:1px solid rgba(255,255,255,.08);margin-top:auto}
+.sb-lang label{font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+.sb-lang select{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:8px 10px;border-radius:8px;font-size:13px;cursor:pointer;outline:none}
+.sb-lang select option{background:var(--dark);color:#fff}
+
+/* MAIN */
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.topbar h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;color:var(--text)}
+.top-r{display:flex;align-items:center;gap:10px}
+.ib{width:38px;height:38px;border-radius:50%;border:none;background:var(--bg);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;position:relative;transition:.2s}
+.ib:hover{background:#ffe0e5}
+.ib .dot{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid #fff}
+.content{padding:22px;flex:1}
+.sec{display:none}.sec.act{display:block}
+
+/* CARDS */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);cursor:pointer;transition:transform .2s,box-shadow .2s;border:1.5px solid transparent}
+.card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.1);border-color:#ffe0e5}
+.stat{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--red);letter-spacing:1px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;transition:all .2s}
+.btn-r{background:var(--red);color:#fff}.btn-r:hover{background:#b00220}
+.btn-g{background:var(--green);color:#fff}
+.btn-b{background:var(--blue);color:#fff}
+.btn-o{background:transparent;border:2px solid var(--red);color:var(--red)}.btn-o:hover{background:var(--red);color:#fff}
+.btn-full{width:100%;justify-content:center;padding:13px;font-size:14px}
+.btn-sm{padding:7px 14px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* FORM */
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.fi{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;outline:none;transition:border .2s;background:#fff}
+.fi:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(217,4,41,.07)}
+textarea.fi{resize:vertical;min-height:80px}
+
+/* BADGE */
+.badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700}
+.bg{background:#d1fae5;color:#065f46}.br{background:#fee2e2;color:#991b1b}
+.bo{background:#fef3c7;color:#92400e}.bb{background:#dbeafe;color:#1e40af}
+
+/* SECTION HEADER */
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.st{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1.5px}
+
+/* TABS */
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:11px;padding:4px;margin-bottom:18px;flex-wrap:wrap}
+.tab{flex:1;min-width:90px;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;transition:.2s;background:transparent;color:var(--muted)}
+.tab.act{background:#fff;color:var(--red);box-shadow:0 2px 6px rgba(0,0,0,.09)}
+
+/* PROGRESS */
+.pb{background:#f3f4f6;border-radius:6px;height:8px;overflow:hidden;margin:5px 0}
+.pf{height:100%;border-radius:6px;transition:width .8s ease}
+
+/* NOTIF */
+.ni{display:flex;align-items:flex-start;gap:11px;padding:13px 16px;border-bottom:1px solid var(--border);transition:.2s}
+.ni:hover{background:#fafafa}
+.ni-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.ni.urg{border-left:3px solid var(--red);background:#fff8f8}
+.ni-title{font-weight:600;font-size:13.5px;margin-bottom:2px}
+.ni-sub{font-size:12px;color:var(--muted)}
+.ni-time{font-size:11px;color:var(--muted);white-space:nowrap}
+
+/* BLOOD REQ CARD */
+.rc{background:#fff;border-radius:13px;padding:16px;border-left:4px solid var(--red);box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bgb{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0;font-family:'Bebas Neue',sans-serif;letter-spacing:1px}
+
+/* BANK CARD */
+.bc{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.06);transition:transform .2s}
+.bc:hover{transform:translateY(-2px)}
+.stock-pill{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;margin:2px}
+.s-hi{background:#d1fae5;color:#065f46}.s-md{background:#fef3c7;color:#92400e}.s-lo{background:#fee2e2;color:#991b1b}
+
+/* CHAT */
+.chat-msg{display:flex;margin-bottom:8px}
+.chat-msg.me{justify-content:flex-end}
+.chat-bubble{max-width:75%;padding:10px 14px;border-radius:12px;font-size:13.5px;line-height:1.6}
+.chat-msg.me .chat-bubble{background:var(--red);color:#fff;border-radius:12px 12px 3px 12px}
+.chat-msg.them .chat-bubble{background:#f0f0f0;color:var(--text);border-radius:12px 12px 12px 3px}
+.chat-msg.ai .chat-bubble{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#e0e0ff;border-radius:12px 12px 12px 3px;border-left:3px solid var(--red2)}
+
+/* LIVE DOT */
+.live{display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%;margin-right:5px}
+@keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(0,200,150,.4)}50%{box-shadow:0 0 0 6px rgba(0,200,150,0)}}
+.live{animation:lp 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.06)}}
+.puls{animation:pulse 1.6s ease-in-out infinite}
+
+/* RT DOT */
+.rt-dot{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--green);font-weight:600}
+.rt-dot::before{content:'';width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block;animation:lp 1.5s infinite}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.mo.hidden{display:none}
+.mo-box{background:#fff;border-radius:20px;padding:26px;width:min(500px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.mo-box h3{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:18px}
+
+/* TOAST */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--dark);color:#fff;padding:13px 20px;border-radius:11px;font-size:13px;font-weight:600;z-index:999;transition:all .3s;transform:translateY(100px);opacity:0;max-width:320px}
+
+/* AVATAR */
+.av-wrap{position:relative;display:inline-block}
+.av-wrap img{width:90px;height:90px;border-radius:50%;object-fit:cover;border:4px solid var(--red)}
+.av-edit{position:absolute;bottom:0;right:0;width:28px;height:28px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;border:2px solid #fff}
+
+/* AI CHAT SPECIFIC */
+.ai-badge{background:linear-gradient(135deg,var(--red),#9b59b6);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:6px}
+.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted);animation:tdot 1.4s infinite both;margin:0 2px}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,80%,100%{transform:scale(0);opacity:.5}40%{transform:scale(1);opacity:1}}
+
+/* AI REPORT */
+.ai-insight{background:linear-gradient(135deg,#1a0a12,#0d0d1a);border-radius:14px;padding:18px;color:#fff;margin-top:14px}
+.ai-insight h4{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--red2);margin-bottom:8px}
+.ai-insight p{font-size:13px;line-height:1.7;color:#d0d0e8}
+
+/* LIVE TICKER */
+#liveTicker{background:var(--dark);color:#fff;padding:8px 24px;font-size:12px;font-weight:600;overflow:hidden;white-space:nowrap}
+#tickerInner{display:inline-block;animation:ticker 30s linear infinite}
+@keyframes ticker{from{transform:translateX(100vw)}to{transform:translateX(-100%)}}
+
+/* PULSE RING on urgent */
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(217,4,41,.5)}70%{box-shadow:0 0 0 12px rgba(217,4,41,0)}100%{box-shadow:0 0 0 0 rgba(217,4,41,0)}}
+.ring{animation:ring 2s infinite}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#ddd;border-radius:4px}
+
+@media(max-width:768px){.sb{transform:translateX(-100%);transition:.3s}.sb.open{transform:translateX(0)}.main{margin-left:0}.content{padding:14px}}
+</style>
+</head>
+<body>
+
+<!-- LIVE TICKER -->
+<div id="liveTicker" style="position:fixed;top:0;left:var(--sw);right:0;z-index:60">
+  <span id="tickerInner">🩸 LIVE: O- blood urgently needed at Apollo Hospital Chennai &nbsp;|&nbsp; 🟢 142 active donors online &nbsp;|&nbsp; 🏦 Government Blood Bank: O- stock critically low (4 units) &nbsp;|&nbsp; 🚨 New request: A+ at Fortis Hospital &nbsp;|&nbsp; ✅ 3 requests fulfilled in the last hour</span>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sb" id="sidebar">
+  <div class="sb-logo">🩸<span>LIFELINK</span><sub>AI v3</sub></div>
+  <ul>
+    <li onclick="nav('dashSec','Dashboard')" class="act">🏠 <span data-t="nav_dash">Dashboard</span></li>
+    <li onclick="nav('profileSec','My Profile')">👤 <span data-t="nav_profile">My Profile</span></li>
+    <li onclick="nav('reportSec','Blood Reports')">📊 <span data-t="nav_report">Blood Reports</span></li>
+    <li onclick="nav('reqSec','Blood Requests')">🆘 <span data-t="nav_req">Blood Requests</span><span class="nb" id="reqBadge">3</span></li>
+    <li onclick="nav('bankSec','Blood Banks')">🏦 <span data-t="nav_bank">Blood Banks</span></li>
+    <li onclick="nav('donorSec','Find Donors')">🩸 <span data-t="nav_donor">Find Donors</span></li>
+    <li onclick="nav('invSec','Inventory')">🧪 <span data-t="nav_inv">Inventory</span></li>
+    <li onclick="nav('chatSec','Live Chat')">💬 <span data-t="nav_chat">Live Chat</span><span class="nb" style="background:var(--blue)">AI</span></li>
+    <li onclick="nav('notifSec','Notifications')">🔔 <span data-t="nav_notif">Notifications</span><span class="nb" id="notifBadge">5</span></li>
+    <li onclick="nav('emergSec','Emergency')">🚨 <span data-t="nav_emerg">Emergency</span></li>
+    <li onclick="nav('settingsSec','Settings')">⚙️ <span data-t="nav_settings">Settings</span></li>
+  </ul>
+  <div class="sb-lang">
+    <label>🌐 Language</label>
+    <select onchange="changeLang(this.value)" id="langSelect">
+      <option value="en">English</option>
+      <option value="ta">தமிழ் (Tamil)</option>
+      <option value="hi">हिन्दी (Hindi)</option>
+      <option value="te">తెలుగు (Telugu)</option>
+      <option value="ml">മലയാളം (Malayalam)</option>
+      <option value="kn">ಕನ್ನಡ (Kannada)</option>
+      <option value="fr">Français</option>
+      <option value="ar">العربية</option>
+    </select>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" style="margin-top:32px">
+  <div class="topbar">
+    <h2 id="pageTitle">DASHBOARD</h2>
+    <div class="top-r">
+      <div class="rt-dot" style="font-size:12px;margin-right:4px">LIVE</div>
+      <button class="ib" onclick="nav('reqSec','Blood Requests')" title="Requests">🆘<span class="dot"></span></button>
+      <button class="ib" onclick="nav('notifSec','Notifications')" title="Notifications">🔔<span class="dot"></span></button>
+      <button class="ib" onclick="nav('emergSec','Emergency')">🚨</button>
+      <button class="ib" onclick="nav('profileSec','My Profile')">👤</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="dashSec" class="sec act">
+      <div class="sh">
+        <div>
+          <div class="st" id="dash_greet">WELCOME BACK 👋</div>
+          <div style="font-size:13px;color:var(--muted)" id="dash_sub">Your blood health summary</div>
+        </div>
+        <span class="badge bg"><span class="live"></span> Live</span>
+      </div>
+      <div class="cards" id="dashCards"></div>
+      <div id="urgentBanner" style="margin-top:20px;background:linear-gradient(135deg,#0d0d1a,#1a0a12);border-radius:16px;padding:20px;color:#fff;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div style="font-size:36px" class="puls">🚨</div>
+        <div style="flex:1">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;margin-bottom:4px">URGENT: O- BLOOD NEEDED</div>
+          <div style="font-size:12px;opacity:.8">Apollo Hospital, Chennai — 2 units — <span id="urgentTimer">10 min ago</span></div>
+        </div>
+        <button class="btn btn-r ring" onclick="respondReq('O-','Apollo Hospital',1)">Respond Now</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:18px" id="miniStats"></div>
+    </div>
+
+    <!-- ===== PROFILE ===== -->
+    <div id="profileSec" class="sec">
+      <div class="sh"><div class="st">MY PROFILE</div><button class="btn btn-r" onclick="saveProfile()">💾 Save Changes</button></div>
+      <div style="display:grid;grid-template-columns:minmax(240px,280px) 1fr;gap:20px" id="profileGrid">
+        <div>
+          <div style="background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.06);text-align:center;margin-bottom:14px">
+            <div class="av-wrap" style="margin-bottom:14px">
+              <img id="profileAvatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+              <div class="av-edit" onclick="document.getElementById('avatarInput').click()">📷</div>
+              <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="changeAvatar(this)">
+            </div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px" id="pName">—</div>
+            <div style="color:var(--muted);font-size:13px;margin:4px 0 10px" id="pEmail">—</div>
+            <span class="badge br" style="font-size:14px;padding:5px 16px" id="pBloodBadge">O+</span>
+            <div style="margin-top:18px;text-align:left;font-size:13px">
+              <div style="padding:8px 0;border-bottom:1px solid var(--border)">📱 <span id="pPhone">—</span></div>
+              <div style="padding:8px 0;border-bottom:1px solid var(--border)">📍 <span id="pCity">—</span></div>
+              <div style="padding:8px 0;border-bottom:1px solid var(--border)">🎂 Age: <span id="pAge">—</span></div>
+              <div style="padding:8px 0;border-bottom:1px solid var(--border)">⚖️ Weight: <span id="pWeight">—</span> kg</div>
+              <div style="padding:8px 0">🩸 <span id="pDonations">0</span> donations</div>
+            </div>
+          </div>
+          <div id="profileEligCard" style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.06)">
+            <div style="font-weight:700;font-size:13px;margin-bottom:10px">DONATION STATUS</div>
+            <div id="profileEligStatus" style="font-size:15px;font-weight:700;color:var(--green)">✅ Eligible</div>
+            <div id="profileEligReason" style="font-size:12px;color:var(--muted);margin-top:4px">Based on your profile data</div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.06)">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;margin-bottom:16px">EDIT PROFILE</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="fg"><label>Full Name</label><input id="eN" class="fi" placeholder="Full name" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Email</label><input id="eE" class="fi" placeholder="Email" type="email" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Phone</label><input id="ePh" class="fi" placeholder="+91 XXXXX XXXXX" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>City / Location</label><input id="eCi" class="fi" placeholder="City" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Age</label><input id="eA" class="fi" type="number" placeholder="Age" min="1" max="100" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Weight (kg)</label><input id="eW" class="fi" type="number" placeholder="Weight kg" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Blood Group</label>
+              <select id="eBG" class="fi" onchange="liveProfileUpdate()">
+                <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                <option selected>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+              </select>
+            </div>
+            <div class="fg"><label>Last Donation</label><input id="eLD" class="fi" type="date" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Hemoglobin (g/dL)</label><input id="eHb" class="fi" type="number" step="0.1" placeholder="e.g. 14.2" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Blood Pressure</label><input id="eBP" class="fi" placeholder="e.g. 118/76" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Blood Sugar (mg/dL)</label><input id="eSug" class="fi" type="number" placeholder="e.g. 95" oninput="liveProfileUpdate()"></div>
+            <div class="fg"><label>Gender</label>
+              <select id="eGen" class="fi" onchange="liveProfileUpdate()">
+                <option value="male">Male</option><option value="female">Female</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg" style="margin-top:4px"><label>Any Medical Conditions</label><textarea id="eMed" class="fi" placeholder="e.g. None / Diabetes / Hypertension" rows="2" oninput="liveProfileUpdate()"></textarea></div>
+          <div style="display:flex;gap:10px;margin-top:6px">
+            <button class="btn btn-r btn-full" onclick="saveProfile()">💾 Save & Update Report</button>
+            <button class="btn btn-o" onclick="nav('reportSec','Blood Reports')">📊 View Report</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== BLOOD REPORTS ===== -->
+    <div id="reportSec" class="sec">
+      <div class="sh">
+        <div class="st">BLOOD REPORTS</div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-r" id="aiAnalyzeBtn" onclick="aiAnalyzeReport()">🤖 AI Analysis</button>
+          <button class="btn btn-o" onclick="refreshReport()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div id="reportHeader" style="background:linear-gradient(135deg,var(--red),var(--red2));border-radius:18px;padding:22px;color:#fff;margin-bottom:18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <img id="repAvatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.4)">
+        <div style="flex:1">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px" id="repName">YOUR HEALTH REPORT</div>
+          <div style="font-size:13px;opacity:.85" id="repMeta">Blood Group: — · Age: —</div>
+          <div id="repEligBadge" style="margin-top:10px;display:inline-block;background:rgba(255,255,255,.25);padding:6px 16px;border-radius:8px;font-weight:700;font-size:14px">Complete your profile first</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;line-height:1" id="repScore">—</div>
+          <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:1px">Health Score</div>
+        </div>
+      </div>
+
+      <!-- AI INSIGHT BOX -->
+      <div id="aiInsightBox" style="display:none;background:linear-gradient(135deg,#0d0d1a,#1a0d20);border-radius:16px;padding:20px;margin-bottom:18px;color:#fff;border:1px solid rgba(255,71,87,.3)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:22px">🤖</span>
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--red2)">AI HEALTH ANALYSIS</span>
+          <span class="ai-badge">CLAUDE AI</span>
+        </div>
+        <div id="aiInsightText" style="font-size:13.5px;line-height:1.8;color:#d0d0e8;white-space:pre-wrap"></div>
+      </div>
+
+      <div style="background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px">🩺 Health Metrics</div>
+        <div id="repMetrics"></div>
+      </div>
+      <div style="background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:20px;margin-bottom:16px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px">✅ Donation Eligibility Criteria</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px" id="repEligGrid"></div>
+        <div id="repEligSummary" style="margin-top:14px;padding:13px;border-radius:10px;font-weight:700;font-size:14px"></div>
+      </div>
+      <div style="background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:20px;margin-bottom:16px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px">📈 Monthly Donation Trend</div>
+        <div id="repChart" style="display:flex;align-items:flex-end;gap:6px;height:110px;padding:5px 0"></div>
+      </div>
+      <div style="background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:20px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px">🩸 Blood Type Distribution</div>
+        <div id="repDist"></div>
+      </div>
+    </div>
+
+    <!-- ===== BLOOD REQUESTS ===== -->
+    <div id="reqSec" class="sec">
+      <div class="sh">
+        <div>
+          <div class="st">BLOOD REQUESTS</div>
+          <div class="rt-dot" style="font-size:12px">Auto-refreshing every 15s</div>
+        </div>
+        <button class="btn btn-r" onclick="openReqModal()">➕ Send Request</button>
+      </div>
+      <div class="tabs" id="reqTabs">
+        <button class="tab act" onclick="filterReq('all',this)">All</button>
+        <button class="tab" onclick="filterReq('urgent',this)">🚨 Urgent</button>
+        <button class="tab" onclick="filterReq('my',this)">My Requests</button>
+        <button class="tab" onclick="filterReq('responded',this)">✓ Responded</button>
+      </div>
+      <div id="reqList"></div>
+    </div>
+
+    <!-- ===== BLOOD BANKS ===== -->
+    <div id="bankSec" class="sec">
+      <div class="sh"><div class="st">BLOOD BANKS</div><button class="btn btn-o" onclick="getMyLoc()">📍 Near Me</button></div>
+      <div id="myLocBar" style="background:#fff;border-radius:11px;padding:13px 16px;margin-bottom:16px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.05);display:flex;align-items:center;gap:10px">
+        <span>📍</span><span id="myLocText" style="color:var(--muted)">Getting your location...</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px" id="bankList"></div>
+    </div>
+
+    <!-- ===== INVENTORY ===== -->
+    <div id="invSec" class="sec">
+      <div class="sh">
+        <div class="st">BLOOD INVENTORY</div>
+        <div class="rt-dot" style="font-size:12px">LIVE UPDATE</div>
+      </div>
+      <div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.05);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:13px;color:var(--muted)">Last updated: <span id="invTime" style="color:var(--text);font-weight:600"></span></div>
+        <div class="rt-dot" style="font-size:11px;margin-left:auto">Syncing every 10s</div>
+      </div>
+      <div class="cards" id="invCards"></div>
+    </div>
+
+    <!-- ===== CHAT (AI-Powered) ===== -->
+    <div id="chatSec" class="sec">
+      <div class="sh">
+        <div>
+          <div class="st">LIVE CHAT</div>
+          <div style="font-size:12px;color:var(--muted)">AI assistant powered by Claude · Human contacts simulated</div>
+        </div>
+        <div class="rt-dot" style="font-size:12px">REAL-TIME</div>
+      </div>
+      <div style="display:flex;gap:14px;height:540px">
+        <div style="width:230px;background:#fff;border-radius:14px;padding:13px;overflow-y:auto;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+          <div style="font-weight:700;font-size:13px;color:var(--red);margin-bottom:11px">Contacts</div>
+          <div id="chatUsers"></div>
+        </div>
+        <div style="flex:1;background:#fff;border-radius:14px;padding:16px;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+          <div id="chatHeader" style="font-weight:700;font-size:14px;color:var(--red);padding-bottom:11px;border-bottom:1px solid var(--border);margin-bottom:10px;display:flex;align-items:center;gap:10px">
+            💬 Select a contact
+          </div>
+          <div id="chatBox" style="flex:1;overflow-y:auto;padding:6px;background:#fafafa;border-radius:9px;margin-bottom:11px"></div>
+          <div style="display:flex;gap:8px">
+            <input id="chatIn" class="fi" style="flex:1" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendChat()">
+            <button class="btn btn-r" onclick="sendChat()" id="sendChatBtn">Send ➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== NOTIFICATIONS ===== -->
+    <div id="notifSec" class="sec">
+      <div class="sh"><div class="st">NOTIFICATIONS</div><button class="btn btn-o btn-sm" onclick="clearNotifs()">Clear All</button></div>
+      <div style="background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden" id="notifWrap"></div>
+    </div>
+
+    <!-- ===== DONORS ===== -->
+    <div id="donorSec" class="sec">
+      <div class="sh"><div class="st">FIND DONORS</div></div>
+      <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div class="fg" style="margin:0;flex:1;min-width:130px"><label>Blood Group</label><select id="srchBlood" class="fi"><option>All</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div>
+        <div class="fg" style="margin:0;flex:2;min-width:160px"><label>City</label><input id="srchCity" class="fi" placeholder="e.g. Chennai"></div>
+        <button class="btn btn-r" onclick="findDonors()">🔍 Search</button>
+      </div>
+      <div id="donorResults" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px"></div>
+    </div>
+
+    <!-- ===== EMERGENCY ===== -->
+    <div id="emergSec" class="sec">
+      <div class="sh"><div class="st">EMERGENCY ALERT</div></div>
+      <div style="background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.06);border:2px solid var(--red)">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:52px;margin-bottom:8px" class="puls">🚨</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px">SEND EMERGENCY BLOOD REQUEST</div>
+          <div style="color:var(--muted);font-size:13px;margin-top:5px">Instantly alerts all matching donors nearby</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="fg"><label>Blood Group</label><select id="eBG2" class="fi"><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div>
+          <div class="fg"><label>Units Required</label><input id="eUnits" class="fi" type="number" value="1" min="1"></div>
+          <div class="fg"><label>Hospital Name</label><input id="eHosp" class="fi" placeholder="Hospital name"></div>
+          <div class="fg"><label>Contact Number</label><input id="eContact" class="fi" placeholder="+91 XXXXX XXXXX"></div>
+        </div>
+        <div class="fg"><label>Patient Name</label><input id="ePat" class="fi" placeholder="Patient name (optional)"></div>
+        <button class="btn btn-r btn-full ring" style="margin-top:6px;font-size:15px" onclick="sendEmergency()">🚨 SEND EMERGENCY ALERT NOW</button>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS ===== -->
+    <div id="settingsSec" class="sec">
+      <div class="sh"><div class="st">SETTINGS</div></div>
+      <div class="cards">
+        <div class="card" onclick="toggleDark()"><div style="font-size:28px;margin-bottom:8px">🌙</div><h3>Dark Mode</h3><p style="color:var(--muted);font-size:13px">Toggle dark theme</p></div>
+        <div class="card" onclick="toggleSound()"><div style="font-size:28px;margin-bottom:8px">🔔</div><h3>Sound Alerts</h3><p style="color:var(--muted);font-size:13px">Toggle sounds</p></div>
+        <div class="card"><div style="font-size:28px;margin-bottom:8px">🌐</div><h3>Language</h3><p style="color:var(--muted);font-size:13px">Use sidebar selector</p></div>
+        <div class="card" onclick="getMyLoc()"><div style="font-size:28px;margin-bottom:8px">📍</div><h3>Live Location</h3><p id="locText" style="color:var(--muted);font-size:13px">Click to detect</p></div>
+        <div class="card" style="border:1.5px solid #fee2e2" onclick="logout()"><div style="font-size:28px;margin-bottom:8px">🚪</div><h3 style="color:var(--red)">Logout</h3><p style="color:var(--muted);font-size:13px">Sign out</p></div>
+      </div>
+    </div>
+
+  </div><!-- .content -->
+</div><!-- .main -->
+
+<!-- SEND REQUEST MODAL -->
+<div class="mo hidden" id="reqModal">
+  <div class="mo-box">
+    <h3>🆘 SEND BLOOD REQUEST</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label>Blood Group</label><select id="mBG" class="fi"><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div>
+      <div class="fg"><label>Units</label><input id="mUnits" class="fi" type="number" value="1" min="1"></div>
+    </div>
+    <div class="fg"><label>Hospital / Location</label><input id="mHosp" class="fi" placeholder="Hospital name"></div>
+    <div class="fg"><label>Urgency</label><select id="mUrg" class="fi"><option value="urgent">🚨 Urgent</option><option value="normal">Normal</option></select></div>
+    <div class="fg"><label>Message</label><textarea id="mMsg" class="fi" rows="2" placeholder="Additional info..."></textarea></div>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="btn btn-o" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-r" style="flex:1;justify-content:center" onclick="submitReq()">📤 Send Request</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ==================== TRANSLATIONS ====================
+const T = {
+  en:{ nav_dash:'Dashboard',nav_profile:'My Profile',nav_report:'Blood Reports',nav_req:'Blood Requests',nav_bank:'Blood Banks',nav_donor:'Find Donors',nav_inv:'Inventory',nav_chat:'Live Chat',nav_notif:'Notifications',nav_emerg:'Emergency',nav_settings:'Settings',dash_greet:'WELCOME BACK 👋',dash_sub:'Your blood health summary',live:'LIVE',eligible:'✅ ELIGIBLE TO DONATE',not_eligible:'❌ NOT ELIGIBLE' },
+  ta:{ nav_dash:'டாஷ்போர்டு',nav_profile:'என் சுயவிவரம்',nav_report:'இரத்த அறிக்கை',nav_req:'இரத்தக் கோரிக்கை',nav_bank:'இரத்த வங்கிகள்',nav_donor:'நன்கொடையாளர்',nav_inv:'சரக்கு',nav_chat:'நேரடி அரட்டை',nav_notif:'அறிவிப்புகள்',nav_emerg:'அவசரநிலை',nav_settings:'அமைப்புகள்',dash_greet:'மீண்டும் வரவேற்கிறோம் 👋',dash_sub:'உங்கள் இரத்த ஆரோக்கியம்',live:'நேரடி',eligible:'✅ நன்கொடை செய்யலாம்',not_eligible:'❌ தகுதியற்றவர்' },
+  hi:{ nav_dash:'डैशबोर्ड',nav_profile:'मेरी प्रोफाइल',nav_report:'रक्त रिपोर्ट',nav_req:'रक्त अनुरोध',nav_bank:'ब्लड बैंक',nav_donor:'दाताओं को खोजें',nav_inv:'इन्वेंटरी',nav_chat:'लाइव चैट',nav_notif:'सूचनाएं',nav_emerg:'आपात',nav_settings:'सेटिंग',dash_greet:'वापसी पर स्वागत 👋',dash_sub:'आपकी रक्त स्वास्थ्य सारांश',live:'लाइव',eligible:'✅ दान करने योग्य',not_eligible:'❌ अयोग्य' },
+  te:{ nav_dash:'డాష్‌బోర్డ్',nav_profile:'నా ప్రొఫైల్',nav_report:'రక్త నివేదిక',nav_req:'రక్త అభ్యర్థనలు',nav_bank:'రక్త బ్యాంకులు',nav_donor:'దాతలను కనుగొనండి',nav_inv:'ఇన్వెంటరీ',nav_chat:'లైవ్ చాట్',nav_notif:'నోటిఫికేషన్లు',nav_emerg:'అత్యవసర',nav_settings:'సెట్టింగులు',dash_greet:'తిరిగి స్వాగతం 👋',dash_sub:'మీ రక్త ఆరోగ్య సారాంశం',live:'లైవ్',eligible:'✅ దానం చేయగలరు',not_eligible:'❌ అర్హత లేదు' },
+  ml:{ nav_dash:'ഡാഷ്ബോർഡ്',nav_profile:'എന്റെ പ്രൊഫൈൽ',nav_report:'രക്ത റിപ്പോർട്ട്',nav_req:'രക്ത അഭ്യർഥനകൾ',nav_bank:'ബ്ലഡ് ബാങ്കുകൾ',nav_donor:'ദാതാക്കളെ കണ്ടെത്തുക',nav_inv:'ഇൻവെന്ററി',nav_chat:'ലൈവ് ചാറ്റ്',nav_notif:'അറിയിപ്പുകൾ',nav_emerg:'അടിയന്തരം',nav_settings:'ക്രമീകരണങ്ങൾ',dash_greet:'സ്വാഗതം 👋',dash_sub:'നിങ്ങളുടെ രക്ത ആരോഗ്യ സംഗ്രഹം',live:'തത്സമയം',eligible:'✅ ദാനം ചെയ്യാം',not_eligible:'❌ അർഹതയില്ല' },
+  kn:{ nav_dash:'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',nav_profile:'ನನ್ನ ಪ್ರೊಫೈಲ್',nav_report:'ರಕ್ತ ವರದಿ',nav_req:'ರಕ್ತದ ವಿನಂತಿಗಳು',nav_bank:'ರಕ್ತ ಬ್ಯಾಂಕ್‌ಗಳು',nav_donor:'ದಾನಿಗಳನ್ನು ಹುಡುಕಿ',nav_inv:'ಇನ್ವೆಂಟರಿ',nav_chat:'ನೇರ ಚಾಟ್',nav_notif:'ಅಧಿಸೂಚನೆಗಳು',nav_emerg:'ತುರ್ತು',nav_settings:'ಸೆಟ್ಟಿಂಗ್‌ಗಳು',dash_greet:'ಮತ್ತೆ ಸ್ವಾಗತ 👋',dash_sub:'ನಿಮ್ಮ ರಕ್ತ ಆರೋಗ್ಯ ಸಾರಾಂಶ',live:'ನೇರ',eligible:'✅ ದಾನ ಮಾಡಬಹುದು',not_eligible:'❌ ಅರ್ಹನಲ್ಲ' },
+  fr:{ nav_dash:'Tableau de bord',nav_profile:'Mon profil',nav_report:'Rapports sanguins',nav_req:'Demandes de sang',nav_bank:'Banques de sang',nav_donor:'Trouver des donneurs',nav_inv:'Inventaire',nav_chat:'Chat en direct',nav_notif:'Notifications',nav_emerg:'Urgence',nav_settings:'Paramètres',dash_greet:'BON RETOUR 👋',dash_sub:'Résumé de votre santé sanguine',live:'EN DIRECT',eligible:'✅ ÉLIGIBLE AU DON',not_eligible:'❌ NON ÉLIGIBLE' },
+  ar:{ nav_dash:'لوحة التحكم',nav_profile:'ملفي الشخصي',nav_report:'تقارير الدم',nav_req:'طلبات الدم',nav_bank:'بنوك الدم',nav_donor:'إيجاد متبرعين',nav_inv:'المخزون',nav_chat:'دردشة مباشرة',nav_notif:'الإشعارات',nav_emerg:'طوارئ',nav_settings:'الإعدادات',dash_greet:'مرحبًا بعودتك 👋',dash_sub:'ملخص صحة دمك',live:'مباشر',eligible:'✅ مؤهل للتبرع',not_eligible:'❌ غير مؤهل' }
+};
+let curLang = 'en';
+function changeLang(lang) {
+  curLang = lang;
+  const tr = T[lang] || T.en;
+  document.querySelectorAll('[data-t]').forEach(el => { if(tr[el.dataset.t]) el.textContent = tr[el.dataset.t]; });
+  document.body.style.direction = lang === 'ar' ? 'rtl' : 'ltr';
+  toast('🌐 Language changed');
+}
+
+// ==================== PROFILE DATA ====================
+let profile = {
+  name:'Arjun Kumar', email:'arjun@example.com', phone:'+91 98765 43210',
+  city:'Chennai, Tamil Nadu', age:28, weight:68, blood:'O+', gender:'male',
+  hb:14.2, bp:'118/76', sugar:95, lastDonation:'2025-04-12', donations:3, medical:'None',
+  avatar:'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
+};
+
+function loadProfileToForm() {
+  document.getElementById('eN').value = profile.name;
+  document.getElementById('eE').value = profile.email;
+  document.getElementById('ePh').value = profile.phone;
+  document.getElementById('eCi').value = profile.city;
+  document.getElementById('eA').value = profile.age;
+  document.getElementById('eW').value = profile.weight;
+  document.getElementById('eBG').value = profile.blood;
+  document.getElementById('eGen').value = profile.gender;
+  document.getElementById('eHb').value = profile.hb;
+  document.getElementById('eBP').value = profile.bp;
+  document.getElementById('eSug').value = profile.sugar;
+  document.getElementById('eLD').value = profile.lastDonation;
+  document.getElementById('eMed').value = profile.medical;
+}
+
+function liveProfileUpdate() {
+  const age = parseInt(document.getElementById('eA').value)||profile.age;
+  const w = parseFloat(document.getElementById('eW').value)||profile.weight;
+  const hb = parseFloat(document.getElementById('eHb').value)||profile.hb;
+  document.getElementById('pName').textContent = document.getElementById('eN').value||profile.name;
+  document.getElementById('pEmail').textContent = document.getElementById('eE').value||profile.email;
+  document.getElementById('pPhone').textContent = document.getElementById('ePh').value||profile.phone;
+  document.getElementById('pCity').textContent = document.getElementById('eCi').value||profile.city;
+  document.getElementById('pAge').textContent = age;
+  document.getElementById('pWeight').textContent = w;
+  document.getElementById('pBloodBadge').textContent = document.getElementById('eBG').value;
+  const elig = age>=18&&age<=65&&w>=50&&hb>=12.5;
+  document.getElementById('profileEligStatus').textContent = elig ? '✅ Eligible to Donate' : '❌ Not Currently Eligible';
+  document.getElementById('profileEligStatus').style.color = elig ? 'var(--green)' : 'var(--red)';
+  document.getElementById('profileEligReason').textContent = !elig ?
+    (age<18||age>65?'Age not in range 18–65':w<50?'Weight below 50kg':'Hemoglobin too low') :
+    'All criteria met based on your profile';
+}
+
+function saveProfile() {
+  profile.name = document.getElementById('eN').value || profile.name;
+  profile.email = document.getElementById('eE').value || profile.email;
+  profile.phone = document.getElementById('ePh').value || profile.phone;
+  profile.city = document.getElementById('eCi').value || profile.city;
+  profile.age = parseInt(document.getElementById('eA').value)||profile.age;
+  profile.weight = parseFloat(document.getElementById('eW').value)||profile.weight;
+  profile.blood = document.getElementById('eBG').value;
+  profile.gender = document.getElementById('eGen').value;
+  profile.hb = parseFloat(document.getElementById('eHb').value)||profile.hb;
+  profile.bp = document.getElementById('eBP').value||profile.bp;
+  profile.sugar = parseInt(document.getElementById('eSug').value)||profile.sugar;
+  profile.lastDonation = document.getElementById('eLD').value||profile.lastDonation;
+  profile.medical = document.getElementById('eMed').value;
+  document.getElementById('repAvatar').src = profile.avatar;
+  refreshReport();
+  toast('✅ Profile saved! Reports updated.','success');
+  addNotif('success','✅ Profile updated — Blood report refreshed','Just now');
+}
+
+function changeAvatar(input) {
+  if (!input.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => {
+    profile.avatar = e.target.result;
+    document.getElementById('profileAvatar').src = e.target.result;
+    document.getElementById('repAvatar').src = e.target.result;
+    toast('📷 Photo updated!','success');
+  };
+  r.readAsDataURL(input.files[0]);
+}
+
+// ==================== CLAUDE AI API ====================
+async function callClaudeAPI(messages, systemPrompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: messages
+    })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content.map(c => c.text || '').join('');
+}
+
+// ==================== AI REPORT ANALYSIS ====================
+async function aiAnalyzeReport() {
+  const btn = document.getElementById('aiAnalyzeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyzing...';
+  const box = document.getElementById('aiInsightBox');
+  const textEl = document.getElementById('aiInsightText');
+  box.style.display = 'block';
+  textEl.textContent = '';
+
+  // Streaming typing effect
+  let dots = 0;
+  const loadingInterval = setInterval(() => {
+    textEl.textContent = 'Analyzing your blood health data' + '.'.repeat(++dots % 4);
+  }, 400);
+
+  const systemPrompt = `You are LifeLink AI, a medical assistant specializing in blood health and donation eligibility. 
+Analyze the patient's blood health data and provide:
+1. A clear health assessment (2-3 sentences)
+2. Donation eligibility verdict with reason
+3. 3 specific, actionable recommendations to improve blood health
+4. Any risks or flags to be aware of
+Be concise, warm, and medically accurate. Use emojis sparingly for readability.`;
+
+  const userMsg = `Patient Profile:
+- Name: ${profile.name}
+- Age: ${profile.age} years, Gender: ${profile.gender}
+- Blood Group: ${profile.blood}
+- Weight: ${profile.weight} kg
+- Hemoglobin: ${profile.hb} g/dL (Normal male: 13.5-17.5, female: 12.0-15.5)
+- Blood Pressure: ${profile.bp} mmHg
+- Blood Sugar (fasting): ${profile.sugar} mg/dL
+- Last Donation: ${profile.lastDonation || 'Never'}
+- Total Donations: ${profile.donations}
+- Medical Conditions: ${profile.medical || 'None'}
+- Health Score: ${computeHealthScore()}%
+
+Provide a detailed blood health analysis and donation eligibility assessment.`;
+
+  try {
+    const reply = await callClaudeAPI([{role:'user', content: userMsg}], systemPrompt);
+    clearInterval(loadingInterval);
+    // Typewriter effect
+    textEl.textContent = '';
+    let i = 0;
+    const typeInterval = setInterval(() => {
+      textEl.textContent += reply[i];
+      i++;
+      if (i >= reply.length) clearInterval(typeInterval);
+    }, 15);
+    addNotif('success','🤖 AI health analysis complete','Just now');
+  } catch(err) {
+    clearInterval(loadingInterval);
+    textEl.textContent = '⚠️ AI analysis unavailable. Please check your connection or API key configuration.\n\nBased on your profile data:\n• Health Score: ' + computeHealthScore() + '%\n• ' + (computeHealthScore() >= 70 ? '✅ You appear eligible to donate blood' : '❌ Some criteria need attention before donating');
+  }
+  btn.disabled = false;
+  btn.textContent = '🤖 AI Analysis';
+}
+
+// ==================== AI CHAT (Real Claude) ====================
+const chatPeople = [
+  {n:'🤖 LifeLink AI Assistant', ai:true, ph:''},
+  {n:'Ravi Kumar 🟢', ai:false, ph:'+91 98001 12345'},
+  {n:'Priya Mehta 🟢', ai:false, ph:'+91 98001 23456'},
+  {n:'Blood Bank Rep 🔴', ai:false, ph:''},
+];
+let activePerson = null;
+let activeIsAI = false;
+const msgs = {};
+const aiChatHistory = {};
+const humanAutoReplies = [
+  'Thanks for reaching out! I\'ll get back shortly.',
+  'Sure, I\'m available to donate today.',
+  'Which hospital do you need blood at?',
+  'Can you share more details please?',
+  'I\'ll be there in 30 minutes!'
+];
+
+const AI_CHAT_SYSTEM = `You are LifeLink AI, a helpful assistant for the LifeLink Blood Bank Management System. 
+You help users with:
+- Blood donation eligibility questions
+- Information about blood types and compatibility
+- Finding blood banks and donors
+- Understanding blood test results
+- Emergency blood request guidance
+- General health advice related to blood donation
+
+Current user profile: Name: ${() => profile.name}, Blood: ${() => profile.blood}, Age: ${() => profile.age}
+Be concise, empathetic, and helpful. Keep responses under 150 words unless more detail is needed.`;
+
+function renderChatUsers() {
+  document.getElementById('chatUsers').innerHTML = chatPeople.map(p => `
+    <div onclick="openChatWith('${p.n}',${p.ai},'${p.ph}')" 
+         style="padding:10px 8px;cursor:pointer;border-radius:8px;transition:.2s;display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:4px;${activePerson===p.n?'background:#fff0f3;color:var(--red);font-weight:600':'color:var(--text)'}">
+      <div style="width:34px;height:34px;border-radius:50%;background:${p.ai?'linear-gradient(135deg,var(--red),#9b59b6)':'#f3f4f6'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${p.ai?'16':'14'}px;color:${p.ai?'#fff':'var(--text)'}">${p.ai?'🤖':p.n[0]}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.n}</div>
+        ${p.ai?'<div style="font-size:10px;color:var(--muted)">Claude AI · Always online</div>':'<div style="font-size:10px;color:var(--green)">Online</div>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openChatWith(name, isAI, phone) {
+  activePerson = name;
+  activeIsAI = isAI;
+  const badge = isAI ? `<span class="ai-badge">CLAUDE AI</span>` : '';
+  const callBtn = phone ? `<button class="btn btn-r btn-sm" onclick="callPhone('${phone}','${name}')" style="margin-left:auto">📞 Call</button>` : '';
+  document.getElementById('chatHeader').innerHTML = `${isAI?'🤖':'💬'} ${name} ${badge} ${callBtn}`;
+  if (!msgs[name]) {
+    msgs[name] = isAI ?
+      [{from:'ai', msg:`Hi ${profile.name.split(' ')[0]}! 👋 I'm LifeLink AI powered by Claude. I can help you with blood donation eligibility, finding donors, understanding your health report, and more. How can I help you today?`, time: new Date().toLocaleTimeString()}] :
+      [{from:'them', msg:`Hi! I'm ${name.split(' ')[0]}. How can I help?`, time: new Date().toLocaleTimeString()}];
+  }
+  if (isAI && !aiChatHistory[name]) aiChatHistory[name] = [];
+  renderChatBox();
+  renderChatUsers();
+}
+
+function renderChatBox() {
+  const el = document.getElementById('chatBox');
+  el.innerHTML = (msgs[activePerson]||[]).map(m => `
+    <div class="chat-msg ${m.from}">
+      <div class="chat-bubble">${m.msg.replace(/\n/g,'<br>')}<div style="font-size:10px;opacity:.6;margin-top:4px;text-align:right">${m.time||''}</div></div>
+    </div>
+  `).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function showTypingIndicator() {
+  const el = document.getElementById('chatBox');
+  const typingEl = document.createElement('div');
+  typingEl.className = 'chat-msg them';
+  typingEl.id = 'typingIndicator';
+  typingEl.innerHTML = `<div class="chat-bubble" style="background:#f0f0f0;padding:12px 16px"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  el.appendChild(typingEl);
+  el.scrollTop = el.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+async function sendChat() {
+  if (!activePerson) { toast('Select a contact first'); return; }
+  const inp = document.getElementById('chatIn');
+  const txt = inp.value.trim();
+  if (!txt) return;
+
+  const sendBtn = document.getElementById('sendChatBtn');
+  sendBtn.disabled = true;
+  if (!msgs[activePerson]) msgs[activePerson] = [];
+  msgs[activePerson].push({from:'me', msg:txt, time:new Date().toLocaleTimeString()});
+  inp.value = '';
+  renderChatBox();
+  showTypingIndicator();
+
+  if (activeIsAI) {
+    // Real Claude API
+    if (!aiChatHistory[activePerson]) aiChatHistory[activePerson] = [];
+    aiChatHistory[activePerson].push({role:'user', content: txt});
+
+    const systemPrompt = `You are LifeLink AI, a helpful assistant for blood donation management. 
+Current user: ${profile.name}, Blood type: ${profile.blood}, Age: ${profile.age}, City: ${profile.city}.
+Health score: ${computeHealthScore()}%, Donations: ${profile.donations}.
+Be concise (under 120 words), warm, and helpful. Use line breaks for readability.`;
+
+    try {
+      const reply = await callClaudeAPI(aiChatHistory[activePerson], systemPrompt);
+      aiChatHistory[activePerson].push({role:'assistant', content: reply});
+      removeTypingIndicator();
+      msgs[activePerson].push({from:'ai', msg: reply, time: new Date().toLocaleTimeString()});
+    } catch(err) {
+      removeTypingIndicator();
+      msgs[activePerson].push({from:'ai', msg: '⚠️ I\'m having trouble connecting right now. Please try again in a moment. In the meantime, you can check the Blood Reports section for your health analysis.', time: new Date().toLocaleTimeString()});
+    }
+  } else {
+    // Simulated human reply
+    await new Promise(r => setTimeout(r, 1200 + Math.random() * 1500));
+    removeTypingIndicator();
+    msgs[activePerson].push({from:'them', msg: humanAutoReplies[Math.floor(Math.random()*humanAutoReplies.length)], time: new Date().toLocaleTimeString()});
+    addNotif('info', `💬 New message from ${activePerson}`, 'Just now');
+    if (!document.getElementById('chatSec').classList.contains('act')) toast(`💬 New message from ${activePerson}`);
+  }
+  renderChatBox();
+  sendBtn.disabled = false;
+}
+
+// ==================== REPORTS ====================
+function computeHealthScore() {
+  let score = 100;
+  const age = profile.age, w = profile.weight, hb = profile.hb;
+  const bpParts = (profile.bp||'120/80').split('/');
+  const sys = parseInt(bpParts[0])||120, dia = parseInt(bpParts[1])||80;
+  const sug = profile.sugar||95;
+  const med = (profile.medical||'').toLowerCase();
+  if (age < 18 || age > 65) score -= 20;
+  if (w < 50) score -= 20;
+  if (hb < 12.5) score -= 25; else if (hb < 13.5 && profile.gender==='male') score -= 10;
+  if (sys >= 140 || dia >= 90) score -= 20; else if (sys >= 130) score -= 10;
+  if (sug >= 126) score -= 20; else if (sug >= 100) score -= 8;
+  if (med && med !== 'none' && med !== '') score -= 10;
+  return Math.max(0, Math.min(100, score));
+}
+
+function refreshReport() {
+  const score = computeHealthScore();
+  const elig = score >= 70;
+  const tr = T[curLang]||T.en;
+  document.getElementById('repName').textContent = (profile.name||'YOUR').toUpperCase() + "'S HEALTH REPORT";
+  document.getElementById('repMeta').textContent = `Blood Group: ${profile.blood} · Age: ${profile.age} · ${profile.city}`;
+  document.getElementById('repScore').textContent = score + '%';
+  document.getElementById('repAvatar').src = profile.avatar;
+  const eb = document.getElementById('repEligBadge');
+  eb.textContent = elig ? (tr.eligible||'✅ ELIGIBLE TO DONATE') : (tr.not_eligible||'❌ NOT ELIGIBLE');
+  eb.style.background = elig ? 'rgba(0,200,150,.3)' : 'rgba(255,71,87,.3)';
+
+  const bpParts = (profile.bp||'120/80').split('/');
+  const sys = parseInt(bpParts[0])||120, dia = parseInt(bpParts[1])||80;
+  const bpOk = sys < 130 && dia < 85;
+  const hbOk = profile.hb >= (profile.gender==='male'?13.5:12.0);
+  const sugOk = profile.sugar <= 100;
+  const metrics = [
+    {icon:'🩸',label:'Hemoglobin',val:`${profile.hb} g/dL`,range:profile.gender==='male'?'13.5–17.5':'12.0–15.5',ok:hbOk,pct:Math.min(100,Math.round((profile.hb/17.5)*100))},
+    {icon:'💓',label:'Blood Pressure',val:`${profile.bp} mmHg`,range:'<120/80',ok:bpOk,pct:bpOk?90:40},
+    {icon:'🍬',label:'Blood Sugar (Fasting)',val:`${profile.sugar} mg/dL`,range:'70–100',ok:sugOk,pct:Math.min(100,Math.round(((140-profile.sugar)/70)*100))},
+    {icon:'⚖️',label:'Weight',val:`${profile.weight} kg`,range:'>50 kg',ok:profile.weight>=50,pct:Math.min(100,Math.round((profile.weight/80)*100))},
+    {icon:'🎂',label:'Age Eligibility',val:`${profile.age} years`,range:'18–65',ok:profile.age>=18&&profile.age<=65,pct:100},
+  ];
+  document.getElementById('repMetrics').innerHTML = metrics.map(m => `
+    <div style="display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border)">
+      <div style="font-size:20px;width:30px;text-align:center">${m.icon}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;margin-bottom:2px">${m.label} <span style="color:var(--muted);font-weight:400;font-size:12px">· Range: ${m.range}</span></div>
+        <div style="font-size:13px;font-weight:700;color:${m.ok?'var(--green)':'var(--red)'}">${m.val}</div>
+        <div class="pb" style="margin-top:6px"><div class="pf" style="width:${Math.max(5,m.pct)}%;background:${m.ok?'var(--green)':'var(--red)'}"></div></div>
+      </div>
+      <span class="badge ${m.ok?'bg':'br'}">${m.ok?'✓ Normal':'⚠ Low'}</span>
+    </div>
+  `).join('');
+
+  const checks = [
+    {l:'Age 18–65',ok:profile.age>=18&&profile.age<=65},
+    {l:'Weight >50kg',ok:profile.weight>=50},
+    {l:'Hemoglobin OK',ok:hbOk},
+    {l:'Blood Pressure',ok:bpOk},
+    {l:'Blood Sugar',ok:sugOk},
+    {l:'No Major Illness',ok:!profile.medical||profile.medical.toLowerCase()==='none'||profile.medical===''},
+  ];
+  document.getElementById('repEligGrid').innerHTML = checks.map(c=>`
+    <div style="display:flex;align-items:center;gap:7px;padding:9px;border-radius:8px;background:${c.ok?'#d1fae5':'#fee2e2'}">
+      <span>${c.ok?'✅':'❌'}</span><span style="font-size:12px;font-weight:600;color:${c.ok?'#065f46':'#991b1b'}">${c.l}</span>
+    </div>
+  `).join('');
+  const noCount = checks.filter(c=>!c.ok).length;
+  const sumEl = document.getElementById('repEligSummary');
+  if(noCount===0){sumEl.style.background='#d1fae5';sumEl.style.color='#065f46';sumEl.textContent='🎉 You are fully eligible to donate blood!';}
+  else{sumEl.style.background='#fee2e2';sumEl.style.color='#991b1b';sumEl.textContent=`❌ ${noCount} criterion/criteria not met. See details above.`;}
+
+  const months=['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const vals=[18,22,16,30,28,35,25,42,38,20,45,32];
+  const maxV=Math.max(...vals);
+  document.getElementById('repChart').innerHTML = months.map((m,i)=>`
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+      <div style="font-size:10px;font-weight:700;color:${i===4?'var(--red)':'var(--muted)'}">${vals[i]}</div>
+      <div style="width:100%;height:${Math.round((vals[i]/maxV)*80)}px;border-radius:5px 5px 0 0;background:${i===4?'var(--red)':'#f9a8b4'}"></div>
+      <div style="font-size:10px;color:var(--muted)">${m}</div>
+    </div>
+  `).join('');
+
+  const types=[{t:'O+',pct:38,c:'#d90429'},{t:'A+',pct:28,c:'#e63946'},{t:'B+',pct:20,c:'#f4a261'},{t:'AB+',pct:7,c:'#2a9d8f'},{t:'O-',pct:4,c:'#457b9d'},{t:'A-',pct:2,c:'#6a994e'},{t:'B-',pct:1,c:'#9b5de5'}];
+  document.getElementById('repDist').innerHTML = types.map(t=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+      <div style="width:36px;text-align:right;font-weight:700;font-size:13px;color:${t.c}">${t.t}</div>
+      <div style="flex:1;background:#f3f4f6;border-radius:6px;height:18px;overflow:hidden">
+        <div style="width:${t.pct}%;height:100%;background:${t.c};border-radius:6px;transition:width 1s ease"></div>
+      </div>
+      <div style="width:30px;font-size:12px;color:var(--muted)">${t.pct}%</div>
+    </div>
+  `).join('');
+}
+
+// ==================== BLOOD REQUESTS ====================
+let reqData = [
+  {id:1,blood:'O-',hospital:'Apollo Hospital',city:'Chennai',units:2,urgency:'urgent',name:'Ramesh P.',time:'10 min ago',responded:false,phone:'+91 98001 00001'},
+  {id:2,blood:'A+',hospital:'Fortis Hospital',city:'Chennai',units:1,urgency:'urgent',name:'Priya S.',time:'25 min ago',responded:false,phone:'+91 98001 00002'},
+  {id:3,blood:'B+',hospital:'MIOT Hospital',city:'Chennai',units:3,urgency:'normal',name:'Karthik M.',time:'1 hr ago',responded:false,phone:'+91 98001 00003'},
+  {id:4,blood:'AB+',hospital:'Sri Ramachandra',city:'Chennai',units:1,urgency:'normal',name:'Ananya R.',time:'3 hrs ago',responded:true,phone:'+91 98001 00004'},
+];
+
+// LIVE: simulate new requests coming in
+const liveReqPool = [
+  {blood:'O+',hospital:'Vijaya Hospital',city:'Chennai',units:1,urgency:'urgent',name:'Sundar K.',phone:'+91 98001 55555'},
+  {blood:'B-',hospital:'SIMS Hospital',city:'Chennai',units:2,urgency:'normal',name:'Lakshmi T.',phone:'+91 98001 66666'},
+  {blood:'AB-',hospital:'Kauvery Hospital',city:'Chennai',units:1,urgency:'urgent',name:'Muthu R.',phone:'+91 98001 77777'},
+  {blood:'A-',hospital:'Gleneagles Hospital',city:'Chennai',units:2,urgency:'normal',name:'Deepa M.',phone:'+91 98001 88888'},
+];
+let liveReqIdx = 0;
+
+function injectLiveRequest() {
+  const r = liveReqPool[liveReqIdx % liveReqPool.length];
+  liveReqIdx++;
+  const timeAgo = 'Just now';
+  reqData.unshift({id:Date.now(),...r,time:timeAgo,responded:false});
+  updateReqBadge();
+  addNotif(r.urgency==='urgent'?'urgent':'blood',`${r.urgency==='urgent'?'🚨':'🩸'} New ${r.urgency} request: ${r.blood} at ${r.hospital}`, 'Just now');
+  if(document.getElementById('reqSec').classList.contains('act')) renderReqs('all');
+  if(!document.getElementById('reqSec').classList.contains('act')) toast(`${r.urgency==='urgent'?'🚨':'🩸'} New ${r.blood} request at ${r.hospital}`);
+  // Update ticker
+  updateTicker();
+}
+
+function updateTicker() {
+  const urgent = reqData.filter(r=>!r.responded&&r.urgency==='urgent');
+  const items = [
+    ...urgent.slice(0,2).map(r=>`🚨 URGENT: ${r.blood} needed at ${r.hospital}, ${r.city}`),
+    `🟢 ${142 + reqData.length} active donors online`,
+    `🏦 Live inventory: ${invData.reduce((a,i)=>a+i.units,0)} total units available`,
+    `✅ ${reqData.filter(r=>r.responded).length} requests fulfilled today`
+  ];
+  document.getElementById('tickerInner').textContent = items.join(' \u00a0|\u00a0 ');
+}
+
+function updateReqBadge() {
+  document.getElementById('reqBadge').textContent = reqData.filter(r=>!r.responded).length;
+}
+
+function renderReqs(filter) {
+  let list = reqData;
+  if(filter==='urgent') list=list.filter(r=>r.urgency==='urgent');
+  if(filter==='responded') list=list.filter(r=>r.responded);
+  if(filter==='my') list=list.slice(0,1);
+  const el = document.getElementById('reqList');
+  el.innerHTML = list.length===0 ? '<div style="text-align:center;color:var(--muted);padding:40px">No requests found</div>' :
+    list.map(r=>`
+      <div class="rc" style="border-left-color:${r.urgency==='urgent'?'var(--red)':'var(--green)'}">
+        <div class="bgb">${r.blood}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;margin-bottom:3px">${r.hospital} <span style="font-weight:400;color:var(--muted);font-size:12px">· ${r.city}</span></div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:5px">👤 ${r.name} &nbsp;|&nbsp; 🩸 ${r.units} unit${r.units>1?'s':''} &nbsp;|&nbsp; ⏰ ${r.time}</div>
+          <span class="badge ${r.urgency==='urgent'?'br':'bg'}">${r.urgency==='urgent'?'🚨 Urgent':'✅ Normal'}</span>
+          ${r.responded?'<span class="badge bb" style="margin-left:6px">✓ Responded</span>':''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${!r.responded?`<button class="btn btn-r btn-sm" onclick="respondReq('${r.blood}','${r.hospital}',${r.id})">Respond</button>`:''}
+          <button class="btn btn-sm" style="background:#25D366;color:#fff" onclick="callPhone('${r.phone}','${r.name}')">📞 Call</button>
+          <button class="btn btn-sm" style="background:#25D366;color:#fff" onclick="waMsg('${r.phone}','${r.blood}','${r.hospital}')">💬 WhatsApp</button>
+        </div>
+      </div>
+    `).join('');
+}
+
+function filterReq(f,btn){document.querySelectorAll('#reqSec .tab').forEach(b=>b.classList.remove('act'));btn.classList.add('act');renderReqs(f);}
+function respondReq(blood,hosp,id){
+  if(id){const r=reqData.find(x=>x.id===id);if(r)r.responded=true;}
+  renderReqs('all');
+  addNotif('success',`✅ You responded to ${blood} request at ${hosp}`,'Just now');
+  toast(`✅ Responded to ${blood} request!`,'success');
+  updateReqBadge();
+}
+function openReqModal(){document.getElementById('reqModal').classList.remove('hidden');}
+function closeModal(){document.getElementById('reqModal').classList.add('hidden');}
+function submitReq(){
+  const blood=document.getElementById('mBG').value;
+  const hosp=document.getElementById('mHosp').value||'Unknown Hospital';
+  const units=parseInt(document.getElementById('mUnits').value)||1;
+  const urg=document.getElementById('mUrg').value;
+  reqData.unshift({id:Date.now(),blood,hospital:hosp,city:'Chennai',units,urgency:urg,name:'You',time:'Just now',responded:false,phone:profile.phone});
+  closeModal();renderReqs('all');
+  addNotif('blood',`📢 Your request for ${blood} at ${hosp} sent`,'Just now');
+  toast(`🆘 Request for ${blood} sent!`,'success');
+  updateReqBadge();
+}
+
+// ==================== BLOOD BANKS ====================
+const banksData=[
+  {name:'Red Cross Blood Bank',loc:'Anna Salai, Chennai',phone:'+914423456789',hours:'8AM–8PM',dist:'1.2 km',lat:13.0604,lng:80.2496,stock:{'O+':45,'A+':30,'B+':22,'AB+':10,'O-':5,'A-':8,'B-':3,'AB-':2}},
+  {name:'Government Blood Bank',loc:'Rajiv Gandhi Govt Hospital',phone:'+914425321234',hours:'24 Hours',dist:'2.4 km',lat:13.0801,lng:80.2770,stock:{'O+':60,'A+':48,'B+':35,'AB+':12,'O-':4,'A-':6,'B-':2,'AB-':1}},
+  {name:'LifeCare Blood Centre',loc:'T. Nagar, Chennai',phone:'+914440015678',hours:'9AM–9PM',dist:'3.1 km',lat:13.0418,lng:80.2341,stock:{'O+':20,'A+':15,'B+':18,'AB+':8,'O-':0,'A-':3,'B-':1,'AB-':0}},
+  {name:'Rotary Blood Bank',loc:'Adyar, Chennai',phone:'+914424459900',hours:'8AM–6PM',dist:'5.0 km',lat:13.0067,lng:80.2572,stock:{'O+':35,'A+':22,'B+':20,'AB+':5,'O-':7,'A-':5,'B-':4,'AB-':2}},
+  {name:'Apollo Blood Bank',loc:'Greams Road, Chennai',phone:'+914428293333',hours:'24 Hours',dist:'5.8 km',lat:13.0592,lng:80.2553,stock:{'O+':55,'A+':40,'B+':30,'AB+':15,'O-':10,'A-':12,'B-':6,'AB-':4}},
+  {name:'Fortis Blood Centre',loc:'Mogappair, Chennai',phone:'+914442892222',hours:'8AM–10PM',dist:'8.3 km',lat:13.0878,lng:80.1537,stock:{'O+':28,'A+':18,'B+':25,'AB+':7,'O-':3,'A-':4,'B-':2,'AB-':1}},
+];
+function renderBanks(){
+  const el=document.getElementById('bankList');
+  el.innerHTML=banksData.map(b=>{
+    const stockHtml=Object.entries(b.stock).map(([t,q])=>`<span class="stock-pill ${q>20?'s-hi':q>5?'s-md':'s-lo'}">${t}: ${q}</span>`).join('');
+    return `
+      <div class="bc">
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
+          <div style="width:46px;height:46px;background:linear-gradient(135deg,#fff0f3,#ffe0e5);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🏦</div>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:15px;margin-bottom:2px">${b.name}</div>
+            <div style="font-size:12px;color:var(--muted)">📍 ${b.loc} &nbsp;·&nbsp; ${b.dist}</div>
+          </div>
+          <span class="badge ${b.hours==='24 Hours'?'bg':'bb'}">${b.hours}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">📞 ${b.phone.replace('+91','')}</div>
+        <div style="margin-bottom:12px">${stockHtml}</div>
+        <div style="display:flex;gap:7px">
+          <button class="btn btn-r" style="flex:1;font-size:12px" onclick="callPhone('${b.phone}','${b.name}')">📞 Call Now</button>
+          <button class="btn btn-b" style="flex:1;font-size:12px" onclick="openMapDir(${b.lat},${b.lng},'${b.name}')">📍 Directions</button>
+          <button class="btn" style="flex:1;font-size:12px;background:#25D366;color:#fff" onclick="waMsg('${b.phone}','—','${b.name}')">💬 WhatsApp</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function callPhone(phone,name){window.open(`tel:${phone.replace(/\s/g,'')}`);}
+function openMapDir(lat,lng,name){window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,'_blank');toast(`📍 Opening directions to ${name}...`);}
+function waMsg(phone,blood,hosp){const clean=phone.replace(/[^0-9]/g,'');const msg=encodeURIComponent(`Hi! I need ${blood} blood at ${hosp}. Can you help? — LifeLink AI`);window.open(`https://wa.me/${clean}?text=${msg}`,'_blank');}
+
+// ==================== LOCATION ====================
+let myLat=null,myLng=null;
+function getMyLoc(){
+  document.getElementById('myLocText').textContent='Detecting location...';
+  if(!navigator.geolocation){toast('Geolocation not supported','error');return;}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    myLat=pos.coords.latitude;myLng=pos.coords.longitude;
+    document.getElementById('myLocText').textContent=`✅ Your location: ${myLat.toFixed(4)}, ${myLng.toFixed(4)}`;
+    document.getElementById('locText').textContent=`${myLat.toFixed(4)}, ${myLng.toFixed(4)}`;
+    toast('📍 Location detected!','success');
+  },err=>{
+    document.getElementById('myLocText').textContent='📍 Default: Chennai, Tamil Nadu';
+    document.getElementById('locText').textContent='Chennai, Tamil Nadu';
+  });
+}
+
+// ==================== INVENTORY (Live) ====================
+let invData=[
+  {type:'A+',units:45,max:100},{type:'A-',units:12,max:60},
+  {type:'B+',units:38,max:80},{type:'B-',units:8,max:40},
+  {type:'O+',units:72,max:120},{type:'O-',units:5,max:60},
+  {type:'AB+',units:20,max:50},{type:'AB-',units:4,max:30},
+];
+
+function renderInv(){
+  document.getElementById('invTime').textContent=new Date().toLocaleTimeString();
+  document.getElementById('invCards').innerHTML=invData.map(i=>{
+    const pct=Math.round((i.units/i.max)*100);
+    const c=pct>50?'var(--green)':pct>20?'var(--orange)':'var(--red)';
+    return `
+      <div class="card" style="text-align:center">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:34px;color:${c};letter-spacing:2px">${i.type}</div>
+        <div style="font-size:26px;font-weight:800;margin:6px 0;color:${c}">${i.units}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">of ${i.max} units</div>
+        <div class="pb"><div class="pf" style="width:${pct}%;background:${c}"></div></div>
+        <div style="margin-top:8px"><span class="badge ${pct>50?'bg':pct>20?'bo':'br'}">${pct>50?'✅ Good':pct>20?'⚠ Low':'🔴 Critical'}</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">${pct}% capacity</div>
+      </div>`;
+  }).join('');
+}
+
+function liveInvUpdate(){
+  invData=invData.map(i=>({...i,units:Math.max(0,Math.min(i.max,i.units+Math.floor(Math.random()*5)-2))}));
+  if(document.getElementById('invSec').classList.contains('act'))renderInv();
+  // Notify on critical
+  invData.forEach(i=>{
+    if(i.units<=3){
+      addNotif('urgent',`🔴 CRITICAL: ${i.type} blood stock — only ${i.units} units left!`,'Just now');
+      renderNotifs();
+    }
+  });
+  updateTicker();
+}
+
+setInterval(liveInvUpdate, 10000);  // Every 10 seconds
+
+// ==================== NOTIFICATIONS ====================
+let notifData=[
+  {type:'urgent',icon:'🚨',bg:'#fee2e2',msg:'URGENT: O- blood needed at Apollo Hospital',sub:'2 units required · 10 min ago',time:'10m'},
+  {type:'blood',icon:'🩸',bg:'#fff0f3',msg:'New blood request: A+ at Fortis Hospital',sub:'Priya S. needs 1 unit urgently',time:'25m'},
+  {type:'success',icon:'✅',bg:'#d1fae5',msg:'Your blood request was fulfilled!',sub:'Thank you! 1 life saved.',time:'2h'},
+  {type:'info',icon:'💬',bg:'#dbeafe',msg:'Ravi Kumar sent you a message',sub:'"Are you available to donate this week?"',time:'3h'},
+  {type:'bank',icon:'🏦',bg:'#fef3c7',msg:'Government Blood Bank: O- stock critically low',sub:'Only 4 units remaining',time:'5h'},
+];
+function addNotif(type,msg,time){
+  notifData.unshift({type,icon:type==='urgent'?'🚨':type==='success'?'✅':type==='blood'?'🩸':type==='info'?'💬':'🔔',bg:type==='urgent'?'#fee2e2':type==='success'?'#d1fae5':type==='blood'?'#fff0f3':'#f0f4ff',msg,sub:'',time});
+  document.getElementById('notifBadge').textContent=notifData.length;
+}
+function renderNotifs(){
+  const el=document.getElementById('notifWrap');
+  el.innerHTML=notifData.length===0?'<div style="text-align:center;padding:40px;color:var(--muted)">No notifications</div>':notifData.map(n=>`
+    <div class="ni ${n.type==='urgent'?'urg':''}">
+      <div class="ni-icon" style="background:${n.bg}">${n.icon}</div>
+      <div style="flex:1"><div class="ni-title">${n.msg}</div>${n.sub?`<div class="ni-sub">${n.sub}</div>`:''}</div>
+      <div class="ni-time">${n.time}</div>
+    </div>
+  `).join('');
+}
+function clearNotifs(){notifData=[];renderNotifs();document.getElementById('notifBadge').textContent=0;toast('Notifications cleared');}
+
+// ==================== DONORS ====================
+const donorsDB=[
+  {name:'Ravi Kumar',blood:'O+',city:'Chennai',age:24,dist:'1.2 km',avail:true,phone:'+91 98765 11111'},
+  {name:'Priya Mehta',blood:'A+',city:'Chennai',age:29,dist:'2.0 km',avail:true,phone:'+91 98765 22222'},
+  {name:'Karthik S.',blood:'B+',city:'Avadi',age:32,dist:'3.5 km',avail:false,phone:'+91 98765 33333'},
+  {name:'Nithya R.',blood:'O-',city:'Chennai',age:27,dist:'4.1 km',avail:true,phone:'+91 98765 44444'},
+  {name:'Sanjay P.',blood:'AB+',city:'Tambaram',age:35,dist:'6.2 km',avail:true,phone:'+91 98765 55555'},
+  {name:'Meera K.',blood:'B-',city:'Chennai',age:22,dist:'2.8 km',avail:true,phone:'+91 98765 66666'},
+  {name:'Arun T.',blood:'A-',city:'Chennai',age:30,dist:'1.8 km',avail:true,phone:'+91 98765 77777'},
+  {name:'Divya S.',blood:'AB-',city:'Velachery',age:26,dist:'5.5 km',avail:false,phone:'+91 98765 88888'},
+];
+function findDonors(){
+  const blood=document.getElementById('srchBlood').value;
+  const city=document.getElementById('srchCity').value.toLowerCase();
+  let list=donorsDB;
+  if(blood!=='All')list=list.filter(d=>d.blood===blood);
+  if(city)list=list.filter(d=>d.city.toLowerCase().includes(city));
+  const el=document.getElementById('donorResults');
+  el.innerHTML=list.length===0?'<div style="color:var(--muted);padding:20px">No donors found.</div>':list.map(d=>`
+    <div class="card" style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="bgb" style="width:44px;height:44px;font-size:14px">${d.blood}</div>
+        <div style="flex:1"><div style="font-weight:700;font-size:14px">${d.name}</div><div style="font-size:12px;color:var(--muted)">📍 ${d.city} · ${d.dist} · Age ${d.age}</div></div>
+        <span class="badge ${d.avail?'bg':'br'}">${d.avail?'Available':'Busy'}</span>
+      </div>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-r btn-sm" style="flex:1" onclick="callPhone('${d.phone}','${d.name}')">📞 Call</button>
+        <button class="btn btn-sm" style="flex:1;background:#25D366;color:#fff" onclick="waMsg('${d.phone}','${d.blood}','nearby')">💬 WhatsApp</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ==================== EMERGENCY ====================
+function sendEmergency(){
+  const blood=document.getElementById('eBG2').value;
+  const hosp=document.getElementById('eHosp').value||'Unnamed Hospital';
+  const units=document.getElementById('eUnits').value;
+  const pat=document.getElementById('ePat').value;
+  reqData.unshift({id:Date.now(),blood,hospital:hosp,city:'Chennai',units:parseInt(units),urgency:'urgent',name:pat||'Emergency',time:'Just now',responded:false,phone:document.getElementById('eContact').value||profile.phone});
+  addNotif('urgent',`🚨 Emergency: ${blood} needed at ${hosp}`,'Just now');
+  updateReqBadge();
+  renderNotifs();
+  toast(`🚨 Emergency alert sent for ${blood} blood!`,'error');
+  updateTicker();
+}
+
+// ==================== DASHBOARD ====================
+function renderDash(){
+  const score=computeHealthScore();
+  const elig=score>=70;
+  document.getElementById('pName').textContent=profile.name;
+  document.getElementById('pEmail').textContent=profile.email;
+  document.getElementById('pPhone').textContent=profile.phone;
+  document.getElementById('pCity').textContent=profile.city;
+  document.getElementById('pAge').textContent=profile.age;
+  document.getElementById('pWeight').textContent=profile.weight;
+  document.getElementById('pBloodBadge').textContent=profile.blood;
+  document.getElementById('pDonations').textContent=profile.donations;
+  document.getElementById('profileAvatar').src=profile.avatar;
+  const tr=T[curLang]||T.en;
+  document.getElementById('dash_greet').textContent=(tr.dash_greet||'WELCOME BACK 👋')+' '+profile.name.split(' ')[0]+'!';
+  document.getElementById('dash_sub').textContent=tr.dash_sub;
+  document.getElementById('dashCards').innerHTML=`
+    <div class="card" style="text-align:center" onclick="nav('donorSec','Find Donors')"><div style="font-size:28px;margin-bottom:6px">🩸</div><div class="stat">142</div><h3>Total Donors</h3><p style="color:var(--muted);font-size:12px">+8 this week</p></div>
+    <div class="card" style="text-align:center" onclick="nav('reqSec','Blood Requests')"><div style="font-size:28px;margin-bottom:6px">🆘</div><div class="stat" style="color:var(--orange)">${reqData.filter(r=>!r.responded).length}</div><h3>Pending Requests</h3><p style="color:var(--muted);font-size:12px">Live updates</p></div>
+    <div class="card" style="text-align:center" onclick="nav('bankSec','Blood Banks')"><div style="font-size:28px;margin-bottom:6px">🏦</div><div class="stat" style="color:var(--green)">6</div><h3>Blood Banks</h3><p style="color:var(--muted);font-size:12px">4 nearby</p></div>
+    <div class="card" style="text-align:center" onclick="nav('invSec','Inventory')"><div style="font-size:28px;margin-bottom:6px">🧪</div><div class="stat" style="color:var(--blue)">${invData.reduce((a,i)=>a+i.units,0)}</div><h3>Units Available</h3><p style="color:var(--muted);font-size:12px">Live count</p></div>
+    <div class="card" style="text-align:center" onclick="nav('reportSec','Blood Reports')"><div style="font-size:28px;margin-bottom:6px">🩺</div><div class="stat" style="color:${score>=70?'var(--green)':score>=50?'var(--orange)':'var(--red)'}">${score}%</div><h3>Health Score</h3><p style="color:var(--muted);font-size:12px">Click for AI analysis</p></div>
+    <div class="card" style="text-align:center" onclick="nav('chatSec','Live Chat')"><div style="font-size:28px;margin-bottom:6px">🤖</div><div class="stat" style="color:#9b59b6;font-size:18px;padding-top:6px">CLAUDE</div><h3>AI Assistant</h3><p style="color:var(--muted);font-size:12px">Powered by Claude AI</p></div>
+  `;
+  document.getElementById('miniStats').innerHTML=`
+    <div style="background:#fff;border-radius:13px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">Eligibility Status</div>
+      <div style="font-size:16px;font-weight:700;color:${elig?'var(--green)':'var(--red)'}">${elig?'✅ Eligible to Donate':'❌ Not Eligible'}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Based on your profile</div>
+    </div>
+    <div style="background:#fff;border-radius:13px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">Last Donation</div>
+      <div style="font-size:16px;font-weight:700">${profile.lastDonation||'Not yet'}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Blood: ${profile.blood}</div>
+    </div>
+    <div style="background:#fff;border-radius:13px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">Lives Saved</div>
+      <div style="font-size:16px;font-weight:700;color:var(--red)">🩸 ${profile.donations*2+1} Lives</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Through ${profile.donations} donations</div>
+    </div>
+  `;
+}
+
+// ==================== NAV ====================
+function nav(secId,title){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('act'));
+  document.querySelectorAll('.sb li').forEach(l=>l.classList.remove('act'));
+  const sec=document.getElementById(secId);
+  if(sec)sec.classList.add('act');
+  document.getElementById('pageTitle').textContent=(T[curLang]&&T[curLang]['nav_'+secId.replace('Sec','')])||title.toUpperCase();
+  if(secId==='reportSec')refreshReport();
+  if(secId==='bankSec'){renderBanks();getMyLoc();}
+  if(secId==='notifSec')renderNotifs();
+  if(secId==='invSec')renderInv();
+  if(secId==='chatSec')renderChatUsers();
+  if(secId==='reqSec')renderReqs('all');
+  if(secId==='profileSec')loadProfileToForm();
+  if(secId==='dashSec')renderDash();
+  if(secId==='donorSec')findDonors();
+}
+
+// ==================== MISC ====================
+function toast(msg,type='default'){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.style.background=type==='success'?'var(--green)':type==='error'?'var(--red)':'var(--dark)';
+  t.style.transform='translateY(0)';t.style.opacity='1';
+  setTimeout(()=>{t.style.transform='translateY(100px)';t.style.opacity='0';},3000);
+}
+
+let isDark = false;
+function toggleDark(){
+  isDark = !isDark;
+  document.documentElement.style.setProperty('--bg',isDark?'#12122a':'#f2f3f7');
+  document.documentElement.style.setProperty('--card',isDark?'#1e1e36':'#ffffff');
+  document.documentElement.style.setProperty('--text',isDark?'#f0f0ff':'#0d0d1a');
+  document.documentElement.style.setProperty('--border',isDark?'rgba(255,255,255,.1)':'#e8eaf0');
+  toast(isDark?'🌙 Dark mode activated':'☀️ Light mode activated');
+}
+function toggleSound(){toast('🔔 Sound alerts toggled');}
+function logout(){toast('🚪 Logging out...');setTimeout(()=>location.reload(),1500);}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded',()=>{
+  loadProfileToForm();
+  renderDash();
+  refreshReport();
+  renderBanks();
+  renderInv();
+  renderNotifs();
+  renderChatUsers();
+  findDonors();
+  renderReqs('all');
+  getMyLoc();
+  updateReqBadge();
+  document.getElementById('notifBadge').textContent=notifData.length;
+
+  // LIVE: inject new blood request every 60 seconds
+  setInterval(injectLiveRequest, 60000);
+
+  // LIVE: periodic notifications every 45s
+  setInterval(()=>{
+    const alerts=[
+      ['urgent','🚨 New urgent O- request at MIOT Hospital'],
+      ['blood','🩸 New B+ blood request from Adyar'],
+      ['info','💬 New message from a donor nearby'],
+      ['success','✅ Blood donation matched successfully!']
+    ];
+    const a=alerts[Math.floor(Math.random()*alerts.length)];
+    addNotif(a[0],a[1],'Just now');
+    renderNotifs();
+    toast(a[1]);
+  },45000);
+
+  // Update urgent banner timer
+  let urgentMins = 10;
+  setInterval(()=>{
+    urgentMins++;
+    const el = document.getElementById('urgentTimer');
+    if(el) el.textContent = urgentMins < 60 ? `${urgentMins} min ago` : `${Math.floor(urgentMins/60)} hr ago`;
+  }, 60000);
+
+  // Refresh dashboard stats every 30s
+  setInterval(()=>{
+    if(document.getElementById('dashSec').classList.contains('act')) renderDash();
+  }, 30000);
+});
+</script>
+</body>
+</html>
